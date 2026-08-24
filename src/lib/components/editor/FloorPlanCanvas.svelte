@@ -2365,19 +2365,6 @@
         selectedRoomId.set(null);
       }
 
-      // Check doors/windows first (they sit on walls, so check before walls)
-      const door = findDoorAt(wp);
-      if (door) {
-        selectElement(door.id, e.shiftKey);
-        if (!e.shiftKey) draggingDoorId = door.id;
-        return;
-      }
-      const win = findWindowAt(wp);
-      if (win) {
-        selectElement(win.id, e.shiftKey);
-        if (!e.shiftKey) draggingWindowId = win.id;
-        return;
-      }
       // Check columns
       const col = findColumnAt(wp);
       if (col) {
@@ -2422,6 +2409,20 @@
           commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - ent.position.x, y: wp.y - ent.position.y };
         }
+        return;
+      }
+      // Doors and windows sit on walls, so they come after the objects standing in the room
+      // and before the walls themselves.
+      const door = findDoorAt(wp);
+      if (door) {
+        selectElement(door.id, e.shiftKey);
+        if (!e.shiftKey) draggingDoorId = door.id;
+        return;
+      }
+      const win = findWindowAt(wp);
+      if (win) {
+        selectElement(win.id, e.shiftKey);
+        if (!e.shiftKey) draggingWindowId = win.id;
         return;
       }
       const wall = findWallAt(wp);
