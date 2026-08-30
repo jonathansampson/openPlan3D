@@ -33,6 +33,8 @@ export const activeFloor = derived(currentProject, ($p) => {
 export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture' | 'text';
 export const selectedTool = writable<Tool>('select');
 export const snapEnabled = writable<boolean>(true);
+/** Snap furniture to the edges of nearby furniture — independent of grid and wall snapping */
+export const snapFurnitureEnabled = writable<boolean>(true);
 /** When true, left-click drag pans the canvas instead of selecting */
 export const panMode = writable<boolean>(false);
 export const showFurnitureStore = writable<boolean>(true);

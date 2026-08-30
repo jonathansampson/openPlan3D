@@ -1,6 +1,6 @@
 <script lang="ts">
   import { furnitureCatalog } from '$lib/utils/furnitureCatalog';
-  import { selectedTool, snapEnabled, placingFurnitureId, undo, redo, currentProject, viewMode } from '$lib/stores/project';
+  import { selectedTool, snapEnabled, snapFurnitureEnabled, placingFurnitureId, undo, redo, currentProject, viewMode } from '$lib/stores/project';
   import { exportAsPNG, exportAsJSON, exportAsSVG, exportPDF } from '$lib/utils/export';
   import { exportDXF } from '$lib/utils/cadExport';
   import { get } from 'svelte/store';
@@ -42,7 +42,8 @@
     { id: 'a-export-png', name: 'Export PNG', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { const canvas = document.querySelector('canvas'); const p = get(currentProject); if (canvas && p) exportAsPNG(canvas, p); } },
     { id: 'a-export-json', name: 'Export JSON', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { const p = get(currentProject); if (p) exportAsJSON(p); } },
     { id: 'a-toggle-grid', name: 'Toggle Grid', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true })); } },
-    { id: 'a-toggle-snap', name: 'Toggle Snap', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { snapEnabled.update(v => !v); } },
+    { id: 'a-toggle-snap', name: 'Toggle Grid Snap', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { snapEnabled.update(v => !v); } },
+    { id: 'a-toggle-snap-furniture', name: 'Toggle Furniture Snap', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { snapFurnitureEnabled.update(v => !v); } },
     { id: 'a-zoom-fit', name: 'Zoom to Fit', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true })); } },
     { id: 'a-undo', name: 'Undo', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => undo() },
     { id: 'a-redo', name: 'Redo', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => redo() },

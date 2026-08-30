@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
-  import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, importFloorIntoCurrentProject, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, snapFurnitureEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, importFloorIntoCurrentProject, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { localStore } from '$lib/services/datastore';
   import { get } from 'svelte/store';
   import type { Floor, Project } from '$lib/models/types';
@@ -25,7 +25,6 @@
   let editingName = $state(false);
   let exportOpen = $state(false);
   import { triggerTip } from '$lib/stores/onboarding.svelte';
-  let snapOn = $state(true);
   let exportRef: HTMLDivElement;
   // Mobile (< md) overflow menu for secondary actions
   let moreOpen = $state(false);
@@ -331,13 +330,25 @@
 
   <!-- Snap to grid toggle -->
   <button
-    onclick={() => { snapEnabled.update(v => !v); snapOn = !snapOn; }}
-    class="p-1.5 rounded transition-colors max-md:hidden {snapOn ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
-    title="Snap to Grid ({snapOn ? 'On' : 'Off'})"
+    onclick={() => snapEnabled.update(v => !v)}
+    class="p-1.5 rounded transition-colors max-md:hidden {$snapEnabled ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
+    title="Snap to Grid ({$snapEnabled ? 'On' : 'Off'})"
     aria-label="Snap to Grid"
   >
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </svg>
+  </button>
+
+  <!-- Snap furniture to furniture toggle -->
+  <button
+    onclick={() => snapFurnitureEnabled.update(v => !v)}
+    class="p-1.5 rounded transition-colors max-md:hidden {$snapFurnitureEnabled ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
+    title="Snap to Furniture ({$snapFurnitureEnabled ? 'On' : 'Off'})"
+    aria-label="Snap to Furniture"
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="7" width="8" height="10"/><rect x="13" y="9" width="8" height="6"/><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="2 2"/>
     </svg>
   </button>
 
@@ -495,7 +506,8 @@
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => canvasZoom.update(z => Math.max(0.1, z / 1.25))}>Zoom Out</button>
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => canvasZoom.set(1)}>Reset Zoom ({Math.round($canvasZoom * 100)}%)</button>
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => panMode.update(v => !v)}>{$panMode ? '✓ ' : ''}Pan Mode</button>
-          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { snapEnabled.update(v => !v); snapOn = !snapOn; }}>{snapOn ? '✓ ' : ''}Snap to Grid</button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => snapEnabled.update(v => !v)}>{$snapEnabled ? '✓ ' : ''}Snap to Grid</button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => snapFurnitureEnabled.update(v => !v)}>{$snapFurnitureEnabled ? '✓ ' : ''}Snap to Furniture</button>
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))}>{$showFurnitureStore ? '✓ ' : ''}Show Furniture</button>
           <div class="h-px bg-gray-100 my-1"></div>
         {/if}

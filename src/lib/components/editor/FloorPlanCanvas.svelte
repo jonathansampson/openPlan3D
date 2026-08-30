@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, snapFurnitureEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -132,6 +132,7 @@
   const SNAP = 10;
   const MAGNETIC_SNAP = 15;
   const WALL_SNAP_DIST = 30; // cm — distance threshold to snap furniture to wall
+  const FURNITURE_SNAP_DIST = 15; // cm — distance threshold to snap furniture to furniture
 
   // Store subscriptions
   let currentFloor: Floor | null = $state(null);
@@ -143,6 +144,7 @@
   let currentDoorType: Door['type'] = $state('single');
   let currentWindowType: Win['type'] = $state('standard');
   let currentSnapEnabled: boolean = $state(true);
+  let currentSnapFurnitureEnabled: boolean = $state(true);
   let currentSnapToGrid: boolean = $state(true);
   let currentGridSize: number = $state(25);
   let isPlacingStair: boolean = $state(false);
@@ -186,6 +188,9 @@
 
   // Wall snap state for visual feedback
   let wallSnapInfo: { wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null = $state(null);
+
+  // Furniture-to-furniture snap guides for visual feedback
+  let furnitureSnapGuides: { a: Point; b: Point }[] = $state([]);
 
   // Door/window placement preview state
   let placementPreview: { wallId: string; position: number; type: 'door' | 'window' } | null = $state(null);
@@ -312,6 +317,124 @@
       }
     }
     return bestResult;
+  }
+
+  /**
+   * Snap furniture against nearby furniture: flush edge contact, plus edge and
+   * center alignment. The two axes resolve independently, so an item can sit
+   * flush against one neighbor while lining up with another.
+   *
+   * Only neighbors turned to the same or a perpendicular angle take part —
+   * boxes meeting at an odd angle have no shared edge to be flush with.
+   * Returns the adjusted position with guide lines to draw, or null if nothing
+   * is close enough.
+   */
+  function snapFurnitureToFurniture(
+    pos: Point,
+    furniture: FurnitureItem | FurnitureDef,
+    rotation: number,
+    excludeId?: string,
+  ): { position: Point; guides: { a: Point; b: Point }[] } | null {
+    if (!currentFloor || !currentSnapFurnitureEnabled) return null;
+
+    const size = 'catalogId' in furniture ? getFurnitureSize(furniture) : furniture;
+    const hx = size.width / 2;
+    const hy = size.depth / 2;
+
+    // Work in the dragged item's own frame: every neighbor that qualifies is
+    // axis-aligned there, which reduces the whole thing to interval arithmetic.
+    const ang = (rotation * Math.PI) / 180;
+    const cos = Math.cos(ang), sin = Math.sin(ang);
+    const toLocal = (p: Point): Point => ({ x: p.x * cos + p.y * sin, y: -p.x * sin + p.y * cos });
+    const toWorld = (p: Point): Point => ({ x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos });
+
+    const local = toLocal(pos);
+
+    // Best candidate per axis: `value` is where our center lands, `line` is the
+    // edge the guide is drawn along, `span` covers both items across the axis.
+    type Match = { value: number; line: number; dist: number; lo: number; hi: number };
+    let matchX: Match | null = null;
+    let matchY: Match | null = null;
+
+    for (const other of currentFloor.furniture) {
+      if (other.id === excludeId) continue;
+
+      // Same angle or a quarter turn from ours, within a degree
+      const delta = (((other.rotation - rotation) % 360) + 360) % 360;
+      const quarter = Math.round(delta / 90);
+      if (Math.abs(delta - quarter * 90) > 1) continue;
+
+      const osize = getFurnitureSize(other);
+      const perpendicular = quarter % 2 === 1;
+      const ohx = (perpendicular ? osize.depth : osize.width) / 2;
+      const ohy = (perpendicular ? osize.width : osize.depth) / 2;
+      const oc = toLocal(other.position);
+
+      // One axis at a time, with the roles of the two axes swapped on the second pass
+      for (const axis of ['x', 'y'] as const) {
+        const cur = axis === 'x' ? local.x : local.y;
+        const half = axis === 'x' ? hx : hy;
+        const oCenter = axis === 'x' ? oc.x : oc.y;
+        const oHalf = axis === 'x' ? ohx : ohy;
+        // Perpendicular extents, used both to test facing and to size the guide
+        const perpCur = axis === 'x' ? local.y : local.x;
+        const perpHalf = axis === 'x' ? hy : hx;
+        const perpOther = axis === 'x' ? oc.y : oc.x;
+        const perpOtherHalf = axis === 'x' ? ohy : ohx;
+
+        // Flush contact needs the two items to face each other across this axis;
+        // alignment does not, so distant items can still line up.
+        const facing = Math.abs(perpCur - perpOther) < perpHalf + perpOtherHalf;
+
+        const candidates: { value: number; line: number; flush: boolean }[] = [
+          { value: oCenter - oHalf - half, line: oCenter - oHalf, flush: true },
+          { value: oCenter + oHalf + half, line: oCenter + oHalf, flush: true },
+          { value: oCenter, line: oCenter, flush: false },
+          { value: oCenter - oHalf + half, line: oCenter - oHalf, flush: false },
+          { value: oCenter + oHalf - half, line: oCenter + oHalf, flush: false },
+        ];
+
+        for (const c of candidates) {
+          if (c.flush && !facing) continue;
+          const dist = Math.abs(c.value - cur);
+          if (dist > FURNITURE_SNAP_DIST) continue;
+          const best = axis === 'x' ? matchX : matchY;
+          if (best && dist >= best.dist) continue;
+          const m: Match = {
+            value: c.value,
+            line: c.line,
+            dist,
+            lo: Math.min(perpCur - perpHalf, perpOther - perpOtherHalf),
+            hi: Math.max(perpCur + perpHalf, perpOther + perpOtherHalf),
+          };
+          if (axis === 'x') matchX = m; else matchY = m;
+        }
+      }
+    }
+
+    if (!matchX && !matchY) return null;
+
+    // An axis that found nothing keeps following the pointer, on the snap step
+    const finalLocal = {
+      x: matchX ? matchX.value : snap(local.x),
+      y: matchY ? matchY.value : snap(local.y),
+    };
+
+    const guides: { a: Point; b: Point }[] = [];
+    if (matchX) {
+      guides.push({
+        a: toWorld({ x: matchX.line, y: matchX.lo }),
+        b: toWorld({ x: matchX.line, y: matchX.hi }),
+      });
+    }
+    if (matchY) {
+      guides.push({
+        a: toWorld({ x: matchY.lo, y: matchY.line }),
+        b: toWorld({ x: matchY.hi, y: matchY.line }),
+      });
+    }
+
+    return { position: toWorld(finalLocal), guides };
   }
 
   function snap(v: number): number {
@@ -528,6 +651,22 @@
     drawFurnitureItem(getCS(), item, selected);
   }
 
+  function drawFurnitureSnapGuides(guides: { a: Point; b: Point }[]) {
+    if (guides.length === 0) return;
+    ctx.strokeStyle = '#d946ef';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    for (const g of guides) {
+      const a = worldToScreen(g.a.x, g.a.y);
+      const b = worldToScreen(g.b.x, g.b.y);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
   // Track wall snap during placement preview
   let placementWallSnap: { position: Point; rotation: number; wallId: string } | null = $state(null);
 
@@ -538,8 +677,10 @@
 
     const wallSnap = snapFurnitureToWall(mousePos, cat, currentPlacingRotation);
     placementWallSnap = wallSnap;
+    const furnSnap = wallSnap ? null : snapFurnitureToFurniture(mousePos, cat, currentPlacingRotation);
+    if (furnSnap) drawFurnitureSnapGuides(furnSnap.guides);
 
-    const pos = wallSnap ? wallSnap.position : mousePos;
+    const pos = wallSnap ? wallSnap.position : furnSnap ? furnSnap.position : mousePos;
     const rot = wallSnap ? wallSnap.rotation : currentPlacingRotation;
 
     const s = worldToScreen(pos.x, pos.y);
@@ -1420,6 +1561,9 @@
       }
     }
 
+    // Furniture snap guides — the edge or center line the item locked onto
+    drawFurnitureSnapGuides(furnitureSnapGuides);
+
     // Wall snap indicator — highlight the target wall
     if (wallSnapInfo && currentFloor) {
       const snapWall = currentFloor.walls.find(w => w.id === wallSnapInfo!.wallId);
@@ -1809,6 +1953,7 @@
     const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; markDirty(); });
     const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; markDirty(); });
     const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; markDirty(); });
+    const unsub_snapfurn = snapFurnitureEnabled.subscribe((v) => { currentSnapFurnitureEnabled = v; markDirty(); });
     const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; markDirty(); });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; markDirty(); });
     const unsubEnt1 = placingEntourageId.subscribe((id) => { currentEntourageDefId = id; markDirty(); });
@@ -1864,7 +2009,7 @@
     canvas.addEventListener('touchend', onTouchEnd, { passive: false });
     canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
+    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsub_snapfurn(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
   });
 
   /** Compute world bounding box of all elements */
@@ -2251,7 +2396,8 @@
     if (tool === 'furniture' && currentPlacingId) {
       const placingCat = getCatalogItem(currentPlacingId);
       const wallSnap = placingCat ? snapFurnitureToWall(wp, placingCat, currentPlacingRotation) : null;
-      const pos = wallSnap ? wallSnap.position : { x: snap(wp.x), y: snap(wp.y) };
+      const furnSnap = !wallSnap && placingCat ? snapFurnitureToFurniture(wp, placingCat, currentPlacingRotation) : null;
+      const pos = wallSnap ? wallSnap.position : furnSnap ? furnSnap.position : { x: snap(wp.x), y: snap(wp.y) };
       const rot = wallSnap ? wallSnap.rotation : currentPlacingRotation;
       const id = addFurniture(currentPlacingId, pos);
       if (rot !== 0) {
@@ -2797,8 +2943,12 @@
           setFurnitureRotation(draggingFurnitureId, wallSnap.rotation);
           dragWasWallSnapped = true;
           wallSnapInfo = { wallId: wallSnap.wallId, side: wallSnap.side, wallAngle: wallSnap.wallAngle };
+          furnitureSnapGuides = [];
         } else {
-          const snapped = { x: snap(basePos.x), y: snap(basePos.y) };
+          // A neighboring item wins over the grid, so contact stays exact
+          const furnSnap = snapFurnitureToFurniture(basePos, fi, fi.rotation, fi.id);
+          const snapped = furnSnap ? { ...furnSnap.position } : { x: snap(basePos.x), y: snap(basePos.y) };
+          furnitureSnapGuides = furnSnap ? furnSnap.guides : [];
           // Snap to guide lines
           const GUIDE_SNAP = 10; // world units
           if (currentSnapEnabled && currentFloor?.guides) {
@@ -2972,6 +3122,7 @@
     draggingWallEndpoint = null;
     draggingConnectedEndpoints = [];
     wallSnapInfo = null;
+    furnitureSnapGuides = [];
     if (measuring && measureStart && measureEnd) {
       // Keep measurement visible until next click
     }
