@@ -242,7 +242,7 @@
    * Returns adjusted position and rotation, or null if no wall is close enough.
    */
   function snapFurnitureToWall(pos: Point, furniture: FurnitureItem | FurnitureDef, currentRotation: number): { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !currentSnapEnabled) return null;
 
     // A placed item carries per-item size overrides; a bare catalog def (placement
     // preview, before the item exists) is already its own effective size.
@@ -346,6 +346,7 @@
   }
 
   function magneticSnap(p: Point, excludeWallIds?: Set<string>): Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean; snappedWallId?: string } {
+    if (!currentSnapEnabled) return { x: p.x, y: p.y };
     if (!currentFloor) return { x: snap(p.x), y: snap(p.y) };
     let best: Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean; snappedWallId?: string } = { x: snap(p.x), y: snap(p.y) };
     let bestDist = MAGNETIC_SNAP / zoom;
@@ -843,7 +844,7 @@
   }
 
   function drawSnapPoints() {
-    if (!currentFloor) return;
+    if (!currentFloor || !currentSnapEnabled) return;
     _drawSnapPoints(getCS(), currentFloor, showGrid);
   }
 
@@ -2638,12 +2639,9 @@
       if (wall) {
         // Free movement in all directions
         {
-          const mdx = mousePos.x - draggingWallParallel.startMousePos.x;
-          const mdy = mousePos.y - draggingWallParallel.startMousePos.y;
-          // Snap delta to grid
-          const snapStep = currentSnapToGrid ? currentGridSize : SNAP;
-          const dx = Math.round(mdx / snapStep) * snapStep;
-          const dy = Math.round(mdy / snapStep) * snapStep;
+          // Snap the delta to the grid so the wall keeps its original alignment
+          const dx = snap(mousePos.x - draggingWallParallel.startMousePos.x);
+          const dy = snap(mousePos.y - draggingWallParallel.startMousePos.y);
           // Set wall positions from original + offset
           const newStart = {
             x: draggingWallParallel.origStart.x + dx,
@@ -2666,9 +2664,8 @@
       }
     }
     if (draggingMultiSelect && currentFloor) {
-      const mSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
-      const dx = Math.round((mousePos.x - draggingMultiSelect.startMousePos.x) / mSnapStep) * mSnapStep;
-      const dy = Math.round((mousePos.y - draggingMultiSelect.startMousePos.y) / mSnapStep) * mSnapStep;
+      const dx = snap(mousePos.x - draggingMultiSelect.startMousePos.x);
+      const dy = snap(mousePos.y - draggingMultiSelect.startMousePos.y);
       for (const [id, orig] of draggingMultiSelect.origPositions) {
         if (orig.start && orig.end) {
           // Wall — move both endpoints
@@ -2685,9 +2682,8 @@
       }
     }
     if (draggingRoomId && currentFloor && roomDragStartPositions.size > 0) {
-      const rSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
-      const dx = Math.round((mousePos.x - roomDragStartMouse.x) / rSnapStep) * rSnapStep;
-      const dy = Math.round((mousePos.y - roomDragStartMouse.y) / rSnapStep) * rSnapStep;
+      const dx = snap(mousePos.x - roomDragStartMouse.x);
+      const dy = snap(mousePos.y - roomDragStartMouse.y);
       for (const [wid, orig] of roomDragStartPositions) {
         moveWallEndpoint(wid, 'start', { x: orig.start.x + dx, y: orig.start.y + dy });
         moveWallEndpoint(wid, 'end', { x: orig.end.x + dx, y: orig.end.y + dy });
@@ -2700,7 +2696,7 @@
         const mx = (wall.start.x + wall.end.x) / 2;
         const my = (wall.start.y + wall.end.y) / 2;
         const distToMid = Math.hypot(mousePos.x - mx, mousePos.y - my);
-        if (distToMid < 5) {
+        if (currentSnapEnabled && distToMid < 5) {
           // Snap back to straight wall
           updateWall(draggingCurveHandle, { curvePoint: undefined });
         } else {
@@ -2805,7 +2801,7 @@
           const snapped = { x: snap(basePos.x), y: snap(basePos.y) };
           // Snap to guide lines
           const GUIDE_SNAP = 10; // world units
-          if (currentFloor?.guides) {
+          if (currentSnapEnabled && currentFloor?.guides) {
             for (const g of currentFloor.guides) {
               if (g.orientation === 'horizontal' && Math.abs(snapped.y - g.position) < GUIDE_SNAP) {
                 snapped.y = g.position;
