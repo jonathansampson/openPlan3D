@@ -134,6 +134,7 @@
     { type: 'casement', name: 'Casement', desc: '80×130cm' },
     { type: 'sliding', name: 'Sliding', desc: '180×120cm' },
     { type: 'bay', name: 'Bay', desc: '200×150cm' },
+    { type: 'opening', name: 'Opening', desc: '120×120cm open' },
   ];
 
   let selectedDoorType = $state<Door['type']>('single');
@@ -516,7 +517,7 @@
                 ondragstart={(e) => { e.dataTransfer?.setData('application/o3d-type', 'window'); e.dataTransfer?.setData('application/o3d-id', wc.type); }}
               >
                 <div class="w-9 h-9 rounded-lg bg-cyan-50 flex items-center justify-center">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/>{#if wc.type !== 'opening'}<line x1="12" y1="4" x2="12" y2="20"/><line x1="3" y1="12" x2="21" y2="12"/>{/if}</svg>
                 </div>
                 <span class="text-xs font-medium text-gray-600">{wc.name}</span>
                 <span class="text-[10px] text-gray-400">{wc.desc}</span>

@@ -1445,6 +1445,8 @@
     for (const win of floor.windows) {
       const wall = floor.walls.find((w) => w.id === win.wallId);
       if (!wall) continue;
+      // Unglazed opening — the wall segments already leave the hole, so no frame, glass or sill
+      if (win.type === 'opening') continue;
       const t = win.position;
       const px = wall.start.x + (wall.end.x - wall.start.x) * t;
       const py = wall.start.y + (wall.end.y - wall.start.y) * t;

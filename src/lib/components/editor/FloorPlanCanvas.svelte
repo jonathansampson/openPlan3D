@@ -586,7 +586,12 @@
       single: 90, double: 150, sliding: 180, french: 150,
       pocket: 90, bifold: 180, opening: 100, garage: 240,
     };
-    const itemWidth = isDoor ? (doorWidths[currentDoorType] ?? 90) : 120;
+    const windowWidths: Record<string, number> = {
+      standard: 120, fixed: 100, casement: 80, sliding: 180, bay: 200, opening: 120,
+    };
+    const itemWidth = isDoor
+      ? (doorWidths[currentDoorType] ?? 90)
+      : (windowWidths[currentWindowType] ?? 120);
     const halfW = (itemWidth / 2) * zoom;
     const thickness = Math.max(wall.thickness * zoom, 4);
 
@@ -634,6 +639,19 @@
       }
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = '#3b82f6';
+      const jamb = thickness / 2 + 2;
+      for (const sign of [-1, 1]) {
+        const jx = s.x + ux * halfW * sign;
+        const jy = s.y + uy * halfW * sign;
+        ctx.beginPath();
+        ctx.moveTo(jx + nx * jamb, jy + ny * jamb);
+        ctx.lineTo(jx - nx * jamb, jy - ny * jamb);
+        ctx.stroke();
+      }
+    } else if (currentWindowType === 'opening') {
+      // Unglazed opening — jamb ticks only, no glazing lines
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1.5;
       const jamb = thickness / 2 + 2;
       for (const sign of [-1, 1]) {
         const jx = s.x + ux * halfW * sign;

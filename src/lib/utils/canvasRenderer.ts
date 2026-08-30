@@ -668,7 +668,34 @@ export function drawWindowOnWall(cs: CanvasState, wall: Wall, win: Win): void {
   const winType = win.type || 'standard';
   const gap = Math.max(2, thickness * 0.25);
 
-  if (winType === 'bay') {
+  if (winType === 'opening') {
+    // Unglazed opening: dashed reveal lines along both wall faces, jamb ticks, no glazing
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 4]);
+    for (const side of [-1, 1]) {
+      const ox = nx * (thickness / 2) * side;
+      const oy = ny * (thickness / 2) * side;
+      ctx.beginPath();
+      ctx.moveTo(s.x - ux * hw + ox, s.y - uy * hw + oy);
+      ctx.lineTo(s.x + ux * hw + ox, s.y + uy * hw + oy);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1.5;
+    const jamb = thickness / 2;
+    for (const side of [-1, 1]) {
+      const jx = s.x + ux * hw * side;
+      const jy = s.y + uy * hw * side;
+      ctx.beginPath();
+      ctx.moveTo(jx + nx * jamb, jy + ny * jamb);
+      ctx.lineTo(jx - nx * jamb, jy - ny * jamb);
+      ctx.stroke();
+    }
+
+  } else if (winType === 'bay') {
     const bayDepth = gap * 3;
     const sideW = hw * 0.3;
     const centerW = hw - sideW;

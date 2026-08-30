@@ -388,6 +388,16 @@ export function exportAsSVG(project: Project) {
     ].map(([x, y]) => `${n2(x)},${n2(y)}`).join(' ');
     paths += `  <polygon points="${gapPts}" fill="white"/>\n`;
 
+    if (win.type === 'opening') {
+      // Unglazed opening: dashed reveal lines along both wall faces + jamb ticks
+      for (const s of [-1, 1]) {
+        const ox = nx * (th - 1) * s, oy = ny * (th - 1) * s;
+        paths += `  <line x1="${n2(px - ux * hw + ox)}" y1="${n2(py - uy * hw + oy)}" x2="${n2(px + ux * hw + ox)}" y2="${n2(py + uy * hw + oy)}" stroke="#999" stroke-width="1" stroke-dasharray="5,4"/>\n`;
+        paths += `  <line x1="${n2(px + ux * hw * s + nx * th)}" y1="${n2(py + uy * hw * s + ny * th)}" x2="${n2(px + ux * hw * s - nx * th)}" y2="${n2(py + uy * hw * s - ny * th)}" stroke="#555" stroke-width="1.5"/>\n`;
+      }
+      continue;
+    }
+
     // Frame lines (double line) + end caps
     for (const s of [-1, 1]) {
       paths += `  <line x1="${n2(px - ux * hw + nx * gap * s)}" y1="${n2(py - uy * hw + ny * gap * s)}" x2="${n2(px + ux * hw + nx * gap * s)}" y2="${n2(py + uy * hw + ny * gap * s)}" stroke="#555" stroke-width="1.5"/>\n`;

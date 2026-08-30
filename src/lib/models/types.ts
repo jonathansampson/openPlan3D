@@ -50,7 +50,7 @@ export interface Window {
   width: number;
   height: number;
   sillHeight: number;
-  type: 'standard' | 'fixed' | 'casement' | 'sliding' | 'bay';
+  type: 'standard' | 'fixed' | 'casement' | 'sliding' | 'bay' | 'opening';
 }
 
 export interface FurnitureItem {

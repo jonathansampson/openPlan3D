@@ -144,6 +144,16 @@
       const px = wall.start.x + dx * win.position;
       const py = wall.start.y + dy * win.position;
       const hw = win.width / 2;
+      if (win.type === 'opening') {
+        // Unglazed opening — dashed single line, no glazing
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(px - nx * hw, py - ny * hw);
+        ctx.lineTo(px + nx * hw, py + ny * hw);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        continue;
+      }
       ctx.beginPath();
       ctx.moveTo(px - nx * hw, py - ny * hw);
       ctx.lineTo(px + nx * hw, py + ny * hw);

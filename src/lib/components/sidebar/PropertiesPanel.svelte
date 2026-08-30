@@ -524,6 +524,7 @@
           <option value="casement">Casement</option>
           <option value="sliding">Sliding</option>
           <option value="bay">Bay</option>
+          <option value="opening">Opening (no glass)</option>
         </select>
       </label>
       <label class="block">

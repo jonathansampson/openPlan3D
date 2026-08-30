@@ -157,6 +157,16 @@ export function exportDXF(project: Project) {
     const halfW = win.width / 2;
     const gap = 3; // gap between parallel lines
 
+    // Unglazed opening: jamb ticks at each side, no glazing lines
+    if (win.type === 'opening') {
+      const jamb = (wall.thickness ?? 10) / 2 + 2;
+      for (const sign of [-1, 1]) {
+        const jx = cx + ux * halfW * sign, jy = cy - uy * halfW * sign;
+        d.drawLine(jx + nx * jamb, jy - ny * jamb, jx - nx * jamb, jy + ny * jamb);
+      }
+      continue;
+    }
+
     // Two parallel lines representing the window
     for (const offset of [-gap, gap]) {
       const ox = nx * offset, oy = -ny * offset;

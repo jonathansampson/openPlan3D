@@ -247,6 +247,7 @@ export function addWindow(wallId: string, position: number, windowType: import('
     casement: { width: 80, height: 130 },
     sliding: { width: 180, height: 120 },
     bay: { width: 200, height: 150 },
+    opening: { width: 120, height: 120 },
   };
   const { width, height } = defaults[windowType];
   mutate((f) => {
