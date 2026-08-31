@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, snapFurnitureEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
-  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
+  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef, EntourageItem } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
@@ -16,7 +16,7 @@
   import type { CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
-  import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt } from '$lib/utils/hitTesting';
+  import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt as _findEntourageAt } from '$lib/utils/hitTesting';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -904,6 +904,7 @@
   }
 
   function hitTestMeasurement(wp: Point, floor: Floor): string | null {
+    if (!layerVis.measurements) return null;
     return _hitTestMeasurement(wp, floor, zoom);
   }
 
@@ -971,6 +972,7 @@
   }
 
   function hitTestAnnotation(wp: Point, floor: Floor): string | null {
+    if (!layerVis.annotations) return null;
     return _hitTestAnnotation(wp, floor, zoom);
   }
 
@@ -2118,40 +2120,48 @@
   }
 
   // ── Hit-testing wrappers (delegating to hitTesting.ts) ──────────────
+  // Each one returns nothing while its layer is hidden: an element the user
+  // cannot see must not answer the pointer, or clicks land on things that are
+  // not there.
 
   function findWallAt(p: Point): Wall | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !layerVis.walls) return null;
     return _findWallAt(p, currentFloor.walls, zoom);
   }
 
   function findHandleAt(p: Point): HandleType | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !showFurniture) return null;
     return _findHandleAt(p, currentSelectedId, currentFloor.furniture, zoom);
   }
 
   function findFurnitureAt(p: Point): FurnitureItem | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !showFurniture) return null;
     return _findFurnitureAt(p, currentFloor.furniture);
   }
 
   function findColumnAt(p: Point): Column | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !layerVis.columns) return null;
     return _findColumnAt(p, currentFloor.columns);
   }
 
   function findStairAt(p: Point): Stair | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !showStairs) return null;
     return _findStairAt(p, currentFloor.stairs);
   }
 
   function findDoorAt(p: Point): Door | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !showDoors) return null;
     return _findDoorAt(p, currentFloor.doors, currentFloor.walls, zoom);
   }
 
   function findWindowAt(p: Point): Win | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !showWindows) return null;
     return _findWindowAt(p, currentFloor.windows, currentFloor.walls, zoom);
+  }
+
+  function findEntourageAt(p: Point): EntourageItem | null {
+    if (!currentFloor || !layerVis.entourage) return null;
+    return _findEntourageAt(p, currentFloor.entourage, (d) => entourageAspect(d, customEntourageDefs));
   }
 
   function findRoomLabelAt(p: Point): Room | null {
@@ -2311,7 +2321,7 @@
     }
 
     // Guide line click detection (select / start drag)
-    if (tool === 'select' && currentFloor?.guides) {
+    if (tool === 'select' && layerVis.guides && currentFloor?.guides) {
       const GUIDE_HIT = 6 / zoom; // 6px tolerance in world units
       for (const g of currentFloor.guides) {
         if (g.orientation === 'horizontal' && Math.abs(wp.y - g.position) < GUIDE_HIT) {
@@ -2584,7 +2594,7 @@
         return;
       }
       // Check entourage (below furniture in priority)
-      const ent = findEntourageAt(wp, currentFloor?.entourage, (d) => entourageAspect(d, customEntourageDefs));
+      const ent = findEntourageAt(wp);
       if (ent) {
         selectElement(ent.id, e.shiftKey);
         if (!e.shiftKey && !ent.locked) {
@@ -3053,39 +3063,49 @@
           return p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
         }
 
+        // Hidden layers are skipped throughout: a marquee only sweeps up what
+        // the user can actually see inside it
         // Walls: both endpoints inside
-        for (const w of currentFloor.walls) {
-          if (ptInRect(w.start) && ptInRect(w.end)) ids.add(w.id);
-        }
-        // Doors/windows: center point inside
-        for (const d of currentFloor.doors) {
-          const w = currentFloor.walls.find(w => w.id === d.wallId);
-          if (w) {
-            const cx = w.start.x + (w.end.x - w.start.x) * d.position;
-            const cy = w.start.y + (w.end.y - w.start.y) * d.position;
-            if (ptInRect({ x: cx, y: cy })) ids.add(d.id);
+        if (layerVis.walls) {
+          for (const w of currentFloor.walls) {
+            if (ptInRect(w.start) && ptInRect(w.end)) ids.add(w.id);
           }
         }
-        for (const win of currentFloor.windows) {
-          const w = currentFloor.walls.find(w => w.id === win.wallId);
-          if (w) {
-            const cx = w.start.x + (w.end.x - w.start.x) * win.position;
-            const cy = w.start.y + (w.end.y - w.start.y) * win.position;
-            if (ptInRect({ x: cx, y: cy })) ids.add(win.id);
+        // Doors/windows: center point inside
+        if (showDoors) {
+          for (const d of currentFloor.doors) {
+            const w = currentFloor.walls.find(w => w.id === d.wallId);
+            if (w) {
+              const cx = w.start.x + (w.end.x - w.start.x) * d.position;
+              const cy = w.start.y + (w.end.y - w.start.y) * d.position;
+              if (ptInRect({ x: cx, y: cy })) ids.add(d.id);
+            }
+          }
+        }
+        if (showWindows) {
+          for (const win of currentFloor.windows) {
+            const w = currentFloor.walls.find(w => w.id === win.wallId);
+            if (w) {
+              const cx = w.start.x + (w.end.x - w.start.x) * win.position;
+              const cy = w.start.y + (w.end.y - w.start.y) * win.position;
+              if (ptInRect({ x: cx, y: cy })) ids.add(win.id);
+            }
           }
         }
         // Furniture: center inside
-        for (const fi of currentFloor.furniture) {
-          if (ptInRect(fi.position)) ids.add(fi.id);
+        if (showFurniture) {
+          for (const fi of currentFloor.furniture) {
+            if (ptInRect(fi.position)) ids.add(fi.id);
+          }
         }
         // Stairs: center inside
-        if (currentFloor.stairs) {
+        if (showStairs && currentFloor.stairs) {
           for (const st of currentFloor.stairs) {
             if (ptInRect(st.position)) ids.add(st.id);
           }
         }
         // Columns: center inside
-        if (currentFloor.columns) {
+        if (layerVis.columns && currentFloor.columns) {
           for (const col of currentFloor.columns) {
             if (ptInRect(col.position)) ids.add(col.id);
           }
