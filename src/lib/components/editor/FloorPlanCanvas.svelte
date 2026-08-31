@@ -648,7 +648,9 @@
   }
 
   function drawFurniture(item: FurnitureItem, selected: boolean) {
-    drawFurnitureItem(getCS(), item, selected);
+    // Handles are hit-tested against the primary selection only, so the rest of
+    // a multi-selection is highlighted without them
+    drawFurnitureItem(getCS(), item, selected, item.id === currentSelectedId);
   }
 
   function drawFurnitureSnapGuides(guides: { a: Point; b: Point }[]) {
@@ -2205,7 +2207,9 @@
   function onMouseDown(e: MouseEvent) {
     markDirty();
     canvasGestureActive = true;
-    if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode || (e.shiftKey && currentTool === 'select')))) {
+    // Shift belongs to selection here — it adds to the multi-select and makes a
+    // marquee additive — so panning is the middle button, Space+drag or pan mode
+    if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode))) {
       isPanning = true;
       panStartX = e.clientX;
       panStartY = e.clientY;
@@ -2426,8 +2430,10 @@
         }
       }
     } else if (tool === 'select') {
-      // Multi-select bounding box drag — check FIRST before individual elements
-      if (currentSelectedIds.size >= 2 && currentFloor) {
+      // Multi-select bounding box drag — check FIRST before individual elements.
+      // Shift is excluded: its clicks are adding to or removing from the
+      // selection, and the box covers the items most likely to be shift-clicked.
+      if (!e.shiftKey && currentSelectedIds.size >= 2 && currentFloor) {
         const bbox = getMultiSelectBBox();
         if (bbox && wp.x >= bbox.minX && wp.x <= bbox.maxX && wp.y >= bbox.minY && wp.y <= bbox.maxY) {
           const origPositions = new Map<string, { start?: Point; end?: Point; position?: Point }>();
@@ -2519,14 +2525,15 @@
       // Helper: select an element (shift = add to multi-select)
       function selectElement(id: string, isShift: boolean, isCtrl: boolean = false) {
         if (isShift) {
-          selectedElementIds.update(ids => {
-            const next = new Set(ids);
-            // Also include the current single selection if any
-            if (currentSelectedId && currentSelectedId !== id) next.add(currentSelectedId);
-            if (next.has(id)) next.delete(id); else next.add(id);
-            return next;
-          });
-          selectedElementId.set(id);
+          const next = new Set(currentSelectedIds);
+          // Also include the current single selection if any
+          if (currentSelectedId && currentSelectedId !== id) next.add(currentSelectedId);
+          const removing = next.has(id);
+          if (removing) next.delete(id); else next.add(id);
+          selectedElementIds.set(next);
+          // An item that was just removed must lose the single selection too,
+          // or it carries on being drawn as selected
+          selectedElementId.set(removing ? (next.values().next().value ?? null) : id);
         } else {
           // Group selection: if element is in a group and not ctrl-clicking, select all group members
           const group = currentFloor ? findGroupForElement(currentFloor, id) : undefined;
@@ -3881,7 +3888,7 @@
   }
 
   let cursorStyle = $derived(
-    spaceDown || isPanning || $panMode || (shiftDown && currentTool === 'select') ? 'grab' :
+    spaceDown || isPanning || $panMode ? 'grab' :
     pickingElevation ? 'crosshair' :
     draggingFurnitureId ? 'move' :
     draggingRoomId ? 'move' :

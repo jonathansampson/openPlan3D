@@ -930,7 +930,12 @@ export function drawWindowDistanceDimensions(cs: CanvasState, wall: Wall, window
 
 // ── Furniture drawing ────────────────────────────────────────────────
 
-export function drawFurnitureItem(cs: CanvasState, item: FurnitureItem, selected: boolean): void {
+/**
+ * `showHandles` is false for the other members of a multi-selection: they are
+ * highlighted so it is clear they are selected, but only the primary item's
+ * handles do anything, so only it draws them.
+ */
+export function drawFurnitureItem(cs: CanvasState, item: FurnitureItem, selected: boolean, showHandles = true): void {
   const { ctx, zoom } = cs;
   const cat = getCatalogItem(item.catalogId);
   if (!cat) return;
@@ -966,6 +971,11 @@ export function drawFurnitureItem(cs: CanvasState, item: FurnitureItem, selected
     ctx.setLineDash([4, 3]);
     ctx.strokeRect(-w / 2 - 2, -d / 2 - 2, w + 4, d + 4);
     ctx.setLineDash([]);
+
+    if (!showHandles) {
+      ctx.restore();
+      return;
+    }
 
     const hs = 5;
     ctx.fillStyle = '#ffffff';
