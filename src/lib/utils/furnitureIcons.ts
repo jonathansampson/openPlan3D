@@ -388,6 +388,83 @@ const drawRug: DrawFn = (ctx, w, d, color) => {
   }
 };
 
+/** Tatami weave: fine lines running the length of the mat, like the igusa surface */
+function tatamiWeave(ctx: CanvasRenderingContext2D, w: number, d: number, color: string) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.5;
+  const spacing = Math.max(4, d / 12);
+  ctx.beginPath();
+  for (let y = -d / 2 + spacing; y < d / 2 - 1; y += spacing) {
+    ctx.moveTo(-w / 2, y);
+    ctx.lineTo(w / 2, y);
+  }
+  ctx.stroke();
+}
+
+const drawTatami: DrawFn = (ctx, w, d, color) => {
+  roundRect(ctx, -w / 2, -d / 2, w, d, 2);
+  ctx.fill(); ctx.stroke();
+  ctx.save();
+  ctx.clip();
+  tatamiWeave(ctx, w, d, color);
+  ctx.restore();
+  // Border band along the long edges
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, -w / 2 + 3, -d / 2 + 3, w - 6, d - 6, 1);
+  ctx.stroke();
+};
+
+/** Right triangle: square minus its bottom-right corner, hypotenuse top-right to bottom-left */
+const drawTatamiTriangle: DrawFn = (ctx, w, d, color) => {
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, -d / 2);
+  ctx.lineTo(w / 2, -d / 2);
+  ctx.lineTo(-w / 2, d / 2);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.save();
+  ctx.clip();
+  tatamiWeave(ctx, w, d, color);
+  ctx.restore();
+};
+
+/** Wall pad seen from above: the pad face, with the plywood board at its back edge */
+const drawWallPad: DrawFn = (ctx, w, d, color) => {
+  roundRect(ctx, -w / 2, -d / 2, w, d, 1);
+  ctx.fill(); ctx.stroke();
+  // Backboard along the wall side
+  const board = Math.max(1, d * 0.25);
+  ctx.fillStyle = '#b48a5a';
+  ctx.fillRect(-w / 2, -d / 2, w, board);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.75;
+  ctx.strokeRect(-w / 2, -d / 2, w, board);
+};
+
+/** Frame rail from above: the board, its bevel line, and the pre-drilled holes */
+const drawMatFrameRail: DrawFn = (ctx, w, d, color) => {
+  ctx.fillRect(-w / 2, -d / 2, w, d);
+  ctx.strokeRect(-w / 2, -d / 2, w, d);
+  // Bevel runs down the +y edge, matching the 3D model
+  const bevel = Math.max(1, d * 0.35);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.75;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, d / 2 - bevel);
+  ctx.lineTo(w / 2, d / 2 - bevel);
+  ctx.stroke();
+  // Countersunk screw holes along the middle
+  const holes = Math.max(2, Math.round(w / 40));
+  ctx.fillStyle = color;
+  for (let i = 0; i < holes; i++) {
+    const x = -w / 2 + (w * (i + 0.5)) / holes;
+    ctx.beginPath();
+    ctx.arc(x, -d / 2 + (d - bevel) / 2, Math.max(0.5, d * 0.1), 0, Math.PI * 2);
+    ctx.fill();
+  }
+};
+
 const drawRoundRug: DrawFn = (ctx, w, d, color) => {
   ctx.beginPath();
   ctx.ellipse(0, 0, w/2, d/2, 0, 0, Math.PI * 2);
@@ -937,6 +1014,11 @@ const iconDrawers: Record<string, DrawFn> = {
   rug: drawRug,
   round_rug: drawRoundRug,
   runner_rug: drawRug,
+  tatami_2x1: drawTatami,
+  tatami_1x1: drawTatami,
+  tatami_tri: drawTatamiTriangle,
+  wall_pad: drawWallPad,
+  mat_frame_rail: drawMatFrameRail,
   potted_plant: drawPlant,
   floor_plant: drawPlant,
   hanging_plant: drawPlant,

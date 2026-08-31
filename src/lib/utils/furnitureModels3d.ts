@@ -138,6 +138,19 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'round_rug':
       createRoundRug(group, w, d, h, color);
       break;
+    case 'tatami_2x1':
+    case 'tatami_1x1':
+      createTatami(group, w, d, h, color);
+      break;
+    case 'tatami_tri':
+      createTatamiTriangle(group, w, d, h, color);
+      break;
+    case 'wall_pad':
+      createWallPad(group, w, d, h, color);
+      break;
+    case 'mat_frame_rail':
+      createMatFrameRail(group, w, d, h, color);
+      break;
     case 'potted_plant':
       createPottedPlant(group, w, d, h, color);
       break;
@@ -1053,6 +1066,130 @@ function createRug(group: THREE.Group, w: number, d: number, h: number, color: s
   const borderMesh = new THREE.Mesh(borderGeo, borderMat);
   borderMesh.position.y = h * 0.25;
   group.add(borderMesh);
+}
+
+/**
+ * Tatami mat: a slab with a cloth border band (heri) proud of the woven surface,
+ * so the mats read as separate tiles when butted together on the floor.
+ */
+function createTatami(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const borderMat = createMaterial(color, 0.9, 0.0);
+  borderMat.color.multiplyScalar(0.72);
+  const border = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), borderMat);
+  border.position.y = h / 2;
+  group.add(border);
+
+  // Woven surface, inset on all sides and sitting just above the border
+  const band = Math.min(w, d) * 0.04;
+  const surface = new THREE.Mesh(
+    new THREE.BoxGeometry(w - band * 2, h * 0.9, d - band * 2),
+    createMaterial(color, 0.95, 0.0),
+  );
+  surface.position.y = h * 0.55;
+  group.add(surface);
+}
+
+/**
+ * Right-triangle tatami: the square minus its bottom-right corner, with the
+ * hypotenuse running from the top-right corner to the bottom-left one.
+ * Local +X is the plan's +x, local +Z the plan's +y, so the corners match the
+ * 2D icon once the model is rotated into place.
+ */
+function createTatamiTriangle(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  // Shape Y is negated so the -PI/2 X rotation below maps it onto +Z
+  const corners: [number, number][] = [
+    [-w / 2, d / 2],   // top-left, the right angle
+    [w / 2, d / 2],    // top-right
+    [-w / 2, -d / 2],  // bottom-left
+  ];
+  const prism = (pts: [number, number][], depth: number) => {
+    const shape = new THREE.Shape();
+    shape.moveTo(pts[0][0], pts[0][1]);
+    shape.lineTo(pts[1][0], pts[1][1]);
+    shape.lineTo(pts[2][0], pts[2][1]);
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);
+    return geo;
+  };
+
+  const borderMat = createMaterial(color, 0.9, 0.0);
+  borderMat.color.multiplyScalar(0.72);
+  group.add(new THREE.Mesh(prism(corners, h), borderMat));
+
+  // Inset the three edges by the same band: for a triangle that is the similar
+  // triangle scaled about the incenter, so the border reads as even width.
+  const band = Math.min(w, d) * 0.04;
+  const hyp = Math.hypot(w, d);
+  const inradius = (w * d) / (w + d + hyp);
+  const k = Math.max(0, 1 - band / inradius);
+  // Incenter: corners weighted by the length of the side opposite each
+  const weights = [hyp, d, w];
+  const total = weights[0] + weights[1] + weights[2];
+  const cx = (corners[0][0] * weights[0] + corners[1][0] * weights[1] + corners[2][0] * weights[2]) / total;
+  const cy = (corners[0][1] * weights[0] + corners[1][1] * weights[1] + corners[2][1] * weights[2]) / total;
+  const inner = corners.map(([x, y]): [number, number] => [cx + (x - cx) * k, cy + (y - cy) * k]);
+
+  const surface = new THREE.Mesh(prism(inner, h * 0.9), createMaterial(color, 0.95, 0.0));
+  surface.position.y = h * 0.1;
+  group.add(surface);
+}
+
+/**
+ * Wall pad: a plywood backboard carrying a vinyl pad on its face. The pad is an
+ * inch shorter than the board, leaving a half inch of board proud at the top and
+ * bottom for the mounting screws. Those margins are absolute, so resizing the
+ * item changes the board and the pad follows it — a 4 ft pad still shows half an
+ * inch of board at each end. The board sits against the wall at -Z, matching the
+ * other wall-mounted items.
+ */
+function createWallPad(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const INCH = 2.54;
+  const boardThickness = Math.min(d * 0.25, INCH / 2);
+  const padThickness = Math.max(d - boardThickness, 0.1);
+  // Half an inch of board above and below, until the item is too short for it
+  const margin = Math.min(INCH / 2, h * 0.2);
+  const padHeight = Math.max(h - margin * 2, 0.1);
+
+  const board = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, boardThickness),
+    createMaterial('#b48a5a', 0.85, 0.0),
+  );
+  board.position.set(0, h / 2, -d / 2 + boardThickness / 2);
+  group.add(board);
+
+  const pad = new THREE.Mesh(
+    new THREE.BoxGeometry(w, padHeight, padThickness),
+    createMaterial(color, 0.75, 0.05),
+  );
+  pad.position.set(0, h / 2, -d / 2 + boardThickness + padThickness / 2);
+  group.add(pad);
+}
+
+/**
+ * Mat frame rail: an oak board that borders a mat area, with a 45 degree bevel
+ * down one long edge. The bevel runs the full height so it stays at 45 degrees
+ * whatever height the rail is given, and faces +Z — the plan's +y — so rotating
+ * the rail points it away from the mats.
+ */
+function createMatFrameRail(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  // A 45 degree bevel eats its own height off the width; leave some flat top
+  const bevel = Math.min(h, d * 0.9);
+
+  // Cross-section in (depth, height); -X is the bevelled edge, which the
+  // rotation below turns into +Z
+  const profile = new THREE.Shape();
+  profile.moveTo(-d / 2, 0);
+  profile.lineTo(d / 2, 0);
+  profile.lineTo(d / 2, h);
+  profile.lineTo(-d / 2 + bevel, h);
+  profile.closePath();
+
+  const geo = new THREE.ExtrudeGeometry(profile, { depth: w, bevelEnabled: false });
+  geo.translate(0, 0, -w / 2);
+  geo.rotateY(Math.PI / 2);
+
+  group.add(new THREE.Mesh(geo, createMaterial(color, 0.65, 0.0)));
 }
 
 function createRoundRug(group: THREE.Group, w: number, d: number, h: number, color: string): void {

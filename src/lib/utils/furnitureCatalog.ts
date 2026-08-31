@@ -74,6 +74,14 @@ export const furnitureCatalog: FurnitureDef[] = [
   { id: 'wall_sconce', name: 'Wall Sconce', category: 'Lighting', icon: '🔅', color: '#fef3c7', width: 15, depth: 10, height: 20 },
   { id: 'pendant_light', name: 'Pendant Light', category: 'Lighting', icon: '💡', color: '#fbbf24', width: 30, depth: 30, height: 30 },
 
+  // Gym — imperial sizes converted from feet and inches (2.54 cm to the inch)
+  { id: 'tatami_2x1', name: 'Tatami 2×1m', category: 'Gym', icon: '🟩', color: '#c3b17a', width: 200, depth: 100, height: 5.08 },
+  { id: 'tatami_1x1', name: 'Tatami 1×1m', category: 'Gym', icon: '🟩', color: '#c3b17a', width: 100, depth: 100, height: 5.08 },
+  { id: 'tatami_tri', name: 'Tatami Triangle', category: 'Gym', icon: '🔺', color: '#c3b17a', width: 100, depth: 100, height: 5.08 },
+  { id: 'wall_pad', name: 'Wall Pad', category: 'Gym', icon: '🟥', color: '#1f2937', width: 60.96, depth: 5.08, height: 182.88 },
+  // One rail of a mat frame kit — 78" x 3" x 1.25" oak, three to a kit
+  { id: 'mat_frame_rail', name: 'Frame Rail', category: 'Gym', icon: '📏', color: '#c8a165', width: 198.12, depth: 7.62, height: 3.175 },
+
   // Outdoor Furniture
   { id: 'patio_table', name: 'Patio Table', category: 'Outdoor Furniture', icon: '🪑', color: '#92400e', width: 120, depth: 120, height: 75 },
   { id: 'patio_chair', name: 'Patio Chair', category: 'Outdoor Furniture', icon: '🪑', color: '#a16207', width: 55, depth: 55, height: 85 },

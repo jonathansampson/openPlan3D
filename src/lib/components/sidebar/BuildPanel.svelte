@@ -321,6 +321,7 @@
     'Office': '#34d399',
     'Dining': '#f59e0b',
     'Decor': '#c2956b',
+    'Gym': '#0f766e',
     'Lighting': '#fbbf24',
     'Outdoor Furniture': '#b45309',
     'Landscaping': '#16a34a',
