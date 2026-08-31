@@ -7,7 +7,7 @@
   import { getMaterial } from '$lib/utils/materials';
   import { getCatalogItem, getFurnitureSize, type FurnitureDef } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
-  import { handleGlobalShortcut } from '$lib/utils/shortcuts';
+  import { handleGlobalShortcut, isTypingTarget } from '$lib/utils/shortcuts';
   import ContextMenu from './ContextMenu.svelte';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
@@ -3303,15 +3303,36 @@
     return { x: wallStart.x + (dx / d) * lenCm, y: wallStart.y + (dy / d) * lenCm };
   }
 
+  /** Rotate whatever is being placed or selected, for the global R shortcut */
+  const shortcutCtx = {
+    rotateFurniture: () => {
+      if (currentPlacingId) {
+        placingRotation.update(r => (r + 15) % 360);
+      } else if (currentSelectedId && currentFloor) {
+        const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
+        if (fi) rotateFurniture(fi.id, 15);
+      }
+    }
+  };
+
   function onKeyDown(e: KeyboardEvent) {
     shiftDown = e.shiftKey;
+
+    // The canvas listens on the window, so while the user is typing every key
+    // below would fire as a tool shortcut — m starting a measurement mid-word,
+    // Space being swallowed, Backspace deleting a guide. Hand the event to the
+    // global shortcuts, which vet the modifier combinations themselves, and
+    // leave the canvas keys alone.
+    if (isTypingTarget(e.target)) {
+      handleGlobalShortcut(e, shortcutCtx);
+      return;
+    }
+
     if (e.code === 'Space') { spaceDown = true; e.preventDefault(); return; }
 
     // Exact-length entry while drawing a wall (issue #6):
     // type a number, then Enter places the wall at exactly that length.
-    const keyTargetTag = (e.target as HTMLElement)?.tagName;
-    const inFormField = keyTargetTag === 'INPUT' || keyTargetTag === 'TEXTAREA' || keyTargetTag === 'SELECT';
-    if (currentTool === 'wall' && wallStart && !editingTextAnnotationId && !inFormField && !e.metaKey && !e.ctrlKey) {
+    if (currentTool === 'wall' && wallStart && !editingTextAnnotationId && !e.metaKey && !e.ctrlKey) {
       if (/^[0-9.]$/.test(e.key)) {
         typedWallLength += e.key;
         markDirty();
@@ -3513,17 +3534,7 @@
     }
 
     // Global shortcuts
-    const handled = handleGlobalShortcut(e, {
-      rotateFurniture: () => {
-        if (currentPlacingId) {
-          placingRotation.update(r => (r + 15) % 360);
-        } else if (currentSelectedId && currentFloor) {
-          const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
-          if (fi) rotateFurniture(fi.id, 15);
-        }
-      }
-    });
-    if (handled) return;
+    if (handleGlobalShortcut(e, shortcutCtx)) return;
 
     if (e.key === 's' || e.key === 'S') {
       projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }));

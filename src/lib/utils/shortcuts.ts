@@ -8,6 +8,18 @@ export interface ShortcutContext {
   save?: () => void;
 }
 
+/**
+ * True when the key is going to somewhere the user is typing. Shortcut handlers
+ * listen on the window, so without this check a plain-key shortcut fires while
+ * a room name or a catalog search is being typed.
+ */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable === true;
+}
+
 export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}): boolean {
   const mod = e.metaKey || e.ctrlKey;
 
@@ -35,8 +47,7 @@ export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}
   }
 
   // Don't handle single-key shortcuts if user is typing in an input
-  const tag = (e.target as HTMLElement)?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+  if (isTypingTarget(e.target)) return false;
 
   if (e.key === 'Escape') {
     selectedTool.set('select');

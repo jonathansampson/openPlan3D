@@ -17,6 +17,7 @@
   import PrintLayout from '$lib/components/editor/PrintLayout.svelte';
   import OnboardingTooltip from '$lib/components/OnboardingTooltip.svelte';
   import { triggerTip } from '$lib/stores/onboarding.svelte';
+  import { isTypingTarget } from '$lib/utils/shortcuts';
 
   let commandPaletteOpen = $state(false);
   let printOpen = $state(false);
@@ -157,9 +158,23 @@
     });
     return () => { unsub(); clearTimeout(saveTimeout); };
   });
+
+  function onWindowKeyDown(e: KeyboardEvent) {
+    const mod = e.ctrlKey || e.metaKey;
+    if (e.key === 'p' && mod) { e.preventDefault(); printOpen = true; return; }
+    if (e.key === 'k' && mod) { e.preventDefault(); commandPaletteOpen = !commandPaletteOpen; return; }
+    if (e.key === 'Escape' && showHelp) { showHelp = false; return; }
+
+    // Plain keys must not fire while the user is typing
+    if (mod || e.altKey || isTypingTarget(e.target)) return;
+
+    if (e.key === '/') { e.preventDefault(); commandPaletteOpen = !commandPaletteOpen; }
+    if (e.key === '?') { e.preventDefault(); showHelp = !showHelp; }
+    if (e.key === 'l') { showLayers = !showLayers; }
+  }
 </script>
 
-<svelte:window on:keydown={(e) => { if (e.key === 'p' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); printOpen = true; } if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !e.ctrlKey && !e.metaKey && (e.target as HTMLElement)?.tagName !== 'INPUT' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA')) { e.preventDefault(); commandPaletteOpen = !commandPaletteOpen; } if (e.key === '?' && !e.ctrlKey && !e.metaKey) { showHelp = !showHelp; e.preventDefault(); } if (e.key === 'Escape' && showHelp) { showHelp = false; } if (e.key === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey && (e.target as HTMLElement)?.tagName !== 'INPUT') { showLayers = !showLayers; } }} />
+<svelte:window on:keydown={onWindowKeyDown} />
 
 {#if ready}
   <div class="h-screen flex flex-col overflow-hidden">
