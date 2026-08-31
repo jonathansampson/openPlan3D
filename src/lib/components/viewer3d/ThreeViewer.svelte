@@ -14,7 +14,7 @@
   import { createFurnitureModel } from '$lib/utils/furnitureModels3d';
   import { createFurnitureModelWithGLB } from '$lib/utils/furnitureModelLoader';
   import { addFurniture } from '$lib/stores/project';
-  import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+  import { detectRooms, detectRoomsWithSaved, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
 
@@ -1541,9 +1541,15 @@
 
     // Room floors with materials + floating labels
     const FALLBACK_ROOM_COLORS = [0xbfdbfe, 0xfde68a, 0xbbf7d0, 0xfecaca, 0xddd6fe, 0xa5f3fc, 0xfed7aa];
-    // Use detected rooms from the store (which have user-edited names/floorTextures)
-    // Fall back to fresh detection if store is empty
-    let rooms = savedRooms.length > 0 ? savedRooms : detectRooms(floor.walls);
+    // The plan canvas keeps detectedRoomsStore up to date with edited names, but
+    // it is only mounted in 2D — so opening straight into 3D, or changing floor
+    // while here, leaves the store empty or holding another floor's rooms. Use
+    // it only when its rooms belong to this floor's walls, and otherwise merge
+    // the saved names in directly.
+    const floorWallIds = new Set(floor.walls.map((w) => w.id));
+    const storeMatchesFloor = savedRooms.length > 0
+      && savedRooms.every((r) => r.walls.every((id) => floorWallIds.has(id)));
+    let rooms = storeMatchesFloor ? savedRooms : detectRoomsWithSaved(floor.walls, floor.rooms ?? []);
     for (let ri = 0; ri < rooms.length; ri++) {
       const room = rooms[ri];
       const poly = getRoomPolygon(room, floor.walls);

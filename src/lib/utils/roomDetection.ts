@@ -237,6 +237,35 @@ export function detectRooms(walls: Wall[]): Room[] {
   return rooms;
 }
 
+/**
+ * Detect rooms, carrying over whatever the user has changed about them.
+ *
+ * detectRooms() mints a fresh id and a default "Room N" name every call, so a
+ * saved room cannot be matched by id — it is matched by the set of walls that
+ * encloses it. Use this anywhere rooms are needed outside the plan canvas,
+ * which keeps its own live copy in detectedRoomsStore.
+ */
+export function detectRoomsWithSaved(walls: Wall[], saved: Room[]): Room[] {
+  const rooms = detectRooms(walls);
+  if (saved.length === 0) return rooms;
+
+  for (const room of rooms) {
+    const roomWalls = new Set(room.walls);
+    const match = saved.find((s) => {
+      const savedWalls = new Set(s.walls);
+      return savedWalls.size === roomWalls.size && [...roomWalls].every((w) => savedWalls.has(w));
+    });
+    if (!match) continue;
+    room.id = match.id;
+    room.name = match.name;
+    if (match.floorTexture) room.floorTexture = match.floorTexture;
+    if (match.color) room.color = match.color;
+    if (match.roomType) room.roomType = match.roomType;
+    if (match.labelOffset) room.labelOffset = match.labelOffset;
+  }
+  return rooms;
+}
+
 function shoelace(pts: Point[]): number {
   let sum = 0;
   for (let i = 0; i < pts.length; i++) {
