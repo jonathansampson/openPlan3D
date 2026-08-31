@@ -57,6 +57,8 @@ export interface FurnitureItem {
   id: string;
   catalogId: string;
   position: Point;
+  /** cm above the floor, added to wherever the model normally sits. Plan view ignores it. */
+  elevation?: number;
   rotation: number;
   scale: { x: number; y: number; z: number };
   // Per-item overrides (optional — falls back to catalog defaults)

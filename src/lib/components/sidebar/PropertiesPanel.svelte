@@ -178,6 +178,21 @@
     if (!selectedFurniture) return;
     updateFurniture(selectedFurniture.id, { rotation: Number((e.target as HTMLInputElement).value) });
   }
+  function onFurnitureX(e: Event) {
+    if (!selectedFurniture) return;
+    const x = inputToCm(Number((e.target as HTMLInputElement).value));
+    updateFurniture(selectedFurniture.id, { position: { x, y: selectedFurniture.position.y } });
+  }
+  function onFurnitureY(e: Event) {
+    if (!selectedFurniture) return;
+    const y = inputToCm(Number((e.target as HTMLInputElement).value));
+    updateFurniture(selectedFurniture.id, { position: { x: selectedFurniture.position.x, y } });
+  }
+  function onFurnitureElevation(e: Event) {
+    if (!selectedFurniture) return;
+    const v = Math.max(0, inputToCm(Number((e.target as HTMLInputElement).value)) || 0);
+    updateFurniture(selectedFurniture.id, { elevation: v });
+  }
   function resetFurnitureDefaults() {
     if (!selectedFurniture) return;
     updateFurniture(selectedFurniture.id, { color: undefined, width: undefined, depth: undefined, height: undefined, material: undefined });
@@ -641,14 +656,48 @@
         </select>
       </label>
       
+      <!-- Position and rotation -->
+      <div>
+        <span class="text-xs text-gray-500 block mb-1">Position ({unitLabel()})</span>
+        <div class="grid grid-cols-3 gap-1.5">
+          <label class="block">
+            <span class="text-[10px] text-gray-400">X</span>
+            <input
+              type="number"
+              value={displayValue(Math.round(selectedFurniture.position.x * 100) / 100)}
+              oninput={onFurnitureX}
+              class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+            />
+          </label>
+          <label class="block">
+            <span class="text-[10px] text-gray-400">Y</span>
+            <input
+              type="number"
+              value={displayValue(Math.round(selectedFurniture.position.y * 100) / 100)}
+              oninput={onFurnitureY}
+              class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+            />
+          </label>
+          <label class="block">
+            <span class="text-[10px] text-gray-400" title="Height above the floor — 3D only">Z</span>
+            <input
+              type="number"
+              value={displayValue(selectedFurniture.elevation ?? 0)}
+              oninput={onFurnitureElevation} min="0"
+              class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+            />
+          </label>
+        </div>
+      </div>
+
       <!-- Rotation -->
       <label class="block">
         <span class="text-xs text-gray-500">Rotation (degrees)</span>
-        <input 
-          type="number" 
-          value={Math.round(selectedFurniture.rotation * 100) / 100} 
-          oninput={onFurnitureRotation} 
-          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+        <input
+          type="number"
+          value={Math.round(selectedFurniture.rotation * 100) / 100}
+          oninput={onFurnitureRotation}
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
         />
       </label>
 
