@@ -15,6 +15,23 @@ import { getWallTextureCanvas, getFloorTextureCanvas } from '$lib/utils/textureG
 import { getEntourageDef } from '$lib/utils/entourageCatalog';
 import type { EntourageItem, CustomEntourageDef } from '$lib/models/types';
 
+// ── Measurement chrome ───────────────────────────────────────────────
+// Dimension text, the pills behind it, and the ticks and arrowheads that go
+// with it annotate the drawing rather than being part of it, so they are sized
+// in screen pixels and stay put as the plan is zoomed.
+
+const DIM_FONT_SIZE = 11;
+/**
+ * Object-distance callouts crowd around a selected item — up to eight at once,
+ * pointing at the walls and the nearest neighbor on each side — and small
+ * furniture can be smaller than its own labels, so they run a size down.
+ */
+export const DIM_FONT_SIZE_COMPACT = 10;
+const DIM_TICK_SIZE = 5;
+const DIM_ARROW_LEN = 7;
+const DIM_ARROW_WIDTH = 3;
+const DIM_EXT_BEYOND = 4;
+
 // ── Wall geometry helpers ────────────────────────────────────────────
 
 export function wallLength(w: Wall): number {
@@ -195,8 +212,7 @@ export function drawWall(
       const midTan = wallTangentAt(w, 0.5);
       const offsetDist = thickness / 2 + 16;
       ctx.fillStyle = dimSettings.dimensionLineColor;
-      const fontSize = Math.max(10, 11 * zoom);
-      ctx.font = `${fontSize}px sans-serif`;
+      ctx.font = `${DIM_FONT_SIZE}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(formatLength(wlen, dimSettings.units), midS.x - midTan.y * offsetDist, midS.y + midTan.x * offsetDist);
@@ -340,8 +356,7 @@ export function drawWall(
   const dimMy = (ds.y + de.y) / 2;
 
   ctx.fillStyle = dimSettings.dimensionLineColor;
-  const fontSize = Math.max(10, 11 * zoom);
-  ctx.font = `${fontSize}px sans-serif`;
+  ctx.font = `${DIM_FONT_SIZE}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const dimLabel = formatLength(dimLen, dimSettings.units);
@@ -358,7 +373,7 @@ export function drawWall(
   ctx.lineTo(de.x, de.y);
   ctx.stroke();
 
-  const tickSize = Math.max(4, 5 * zoom);
+  const tickSize = DIM_TICK_SIZE;
   ctx.strokeStyle = dimSettings.dimensionLineColor;
   ctx.lineWidth = 1;
   for (const pt of [ds, de]) {
@@ -841,7 +856,7 @@ export function drawWindowOnWall(cs: CanvasState, wall: Wall, win: Win): void {
 // ── Door/Window distance dimensions ──────────────────────────────────
 
 export function drawDoorDistanceDimensions(cs: CanvasState, wall: Wall, door: Door, dimSettings: ProjectSettings): void {
-  const { ctx, zoom } = cs;
+  const { ctx } = cs;
   const wLength = wallLength(wall);
   if (wLength < 10) return;
 
@@ -862,7 +877,7 @@ export function drawDoorDistanceDimensions(cs: CanvasState, wall: Wall, door: Do
     ctx.setLineDash([]);
   }
 
-  const fontSize = Math.max(10, 11 * zoom);
+  const fontSize = DIM_FONT_SIZE;
   ctx.font = `${fontSize}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -885,7 +900,7 @@ export function drawDoorDistanceDimensions(cs: CanvasState, wall: Wall, door: Do
 }
 
 export function drawWindowDistanceDimensions(cs: CanvasState, wall: Wall, window: Win, dimSettings: ProjectSettings): void {
-  const { ctx, zoom } = cs;
+  const { ctx } = cs;
   const wLength = wallLength(wall);
   if (wLength < 10) return;
 
@@ -906,7 +921,7 @@ export function drawWindowDistanceDimensions(cs: CanvasState, wall: Wall, window
     ctx.setLineDash([]);
   }
 
-  const fontSize = Math.max(10, 11 * zoom);
+  const fontSize = DIM_FONT_SIZE;
   ctx.font = `${fontSize}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -1316,7 +1331,7 @@ export function drawTextAnnotations(cs: CanvasState, floor: Floor, selectedTextA
 // ── Dimension annotations ────────────────────────────────────────────
 
 export function drawAnnotation(cs: CanvasState, a: Annotation, selected: boolean, dimSettings: ProjectSettings): void {
-  const { ctx, zoom } = cs;
+  const { ctx } = cs;
   const offset = a.offset || 40;
   const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
   const len = Math.hypot(dx, dy);
@@ -1336,10 +1351,10 @@ export function drawAnnotation(cs: CanvasState, a: Annotation, selected: boolean
   const color = selected ? '#3b82f6' : '#6366f1';
 
   ctx.strokeStyle = color; ctx.lineWidth = 0.75;
-  const extBeyond = 4 * zoom;
+  // This overhang was multiplied by the zoom twice, so it grew quadratically
   ctx.beginPath();
-  ctx.moveTo(s1.x, s1.y); ctx.lineTo(sd1.x + nx * extBeyond * zoom, sd1.y + ny * extBeyond * zoom);
-  ctx.moveTo(s2.x, s2.y); ctx.lineTo(sd2.x + nx * extBeyond * zoom, sd2.y + ny * extBeyond * zoom);
+  ctx.moveTo(s1.x, s1.y); ctx.lineTo(sd1.x + nx * DIM_EXT_BEYOND, sd1.y + ny * DIM_EXT_BEYOND);
+  ctx.moveTo(s2.x, s2.y); ctx.lineTo(sd2.x + nx * DIM_EXT_BEYOND, sd2.y + ny * DIM_EXT_BEYOND);
   ctx.stroke();
 
   const dimMx = (sd1.x + sd2.x) / 2;
@@ -1347,8 +1362,7 @@ export function drawAnnotation(cs: CanvasState, a: Annotation, selected: boolean
 
   const dist = Math.hypot(a.x2 - a.x1, a.y2 - a.y1);
   const label = a.label || formatLength(dist, dimSettings.units);
-  const fontSize = Math.max(10, 11 * zoom);
-  ctx.font = `${fontSize}px sans-serif`;
+  ctx.font = `${DIM_FONT_SIZE}px sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const textW = ctx.measureText(label).width;
   const halfGap = textW / 2 + 4;
@@ -1361,8 +1375,8 @@ export function drawAnnotation(cs: CanvasState, a: Annotation, selected: boolean
   ctx.moveTo(dimMx + sux * halfGap, dimMy + suy * halfGap); ctx.lineTo(sd2.x, sd2.y);
   ctx.stroke();
 
-  const arrowLen = Math.max(6, 7 * zoom);
-  const arrowW = Math.max(2.5, 3 * zoom);
+  const arrowLen = DIM_ARROW_LEN;
+  const arrowW = DIM_ARROW_WIDTH;
   ctx.fillStyle = color;
   for (const [px, py, dir] of [[sd1.x, sd1.y, 1], [sd2.x, sd2.y, -1]] as [number, number, number][]) {
     const adx = sux * arrowLen * dir;
