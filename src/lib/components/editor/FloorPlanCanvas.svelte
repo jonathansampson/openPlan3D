@@ -100,7 +100,7 @@
   let showRulers = $state(true);
 
   // Layer visibility toggles
-  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
+  let layerVis = $state({ rooms: true, walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
   // Sync showFurnitureStore ↔ layerVisibility.furniture
   let showFurniture = $derived(layerVis.furniture);
   $effect(() => { showFurnitureStore.set(layerVis.furniture); });
@@ -989,12 +989,13 @@
   }
 
   function drawSnapPoints() {
-    if (!currentFloor || !currentSnapEnabled) return;
+    // The dots mark wall endpoints, so they go when the walls do
+    if (!currentFloor || !currentSnapEnabled || !layerVis.walls) return;
     _drawSnapPoints(getCS(), currentFloor, showGrid);
   }
 
   function drawRooms() {
-    if (!currentFloor) return;
+    if (!currentFloor || !layerVis.rooms) return;
     _drawRooms(getCS(), currentFloor, detectedRooms, currentSelectedRoomId, showRoomLabels, showDimensions, dimSettings);
   }
 
@@ -2165,7 +2166,7 @@
   }
 
   function findRoomLabelAt(p: Point): Room | null {
-    if (!currentFloor || !showRoomLabels) return null;
+    if (!currentFloor || !layerVis.rooms || !showRoomLabels) return null;
     for (const room of detectedRooms) {
       const poly = getRoomPolygon(room, currentFloor.walls);
       if (poly.length < 3) continue;
@@ -2193,7 +2194,7 @@
   }
 
   function findRoomAt(p: Point): Room | null {
-    if (!currentFloor) return null;
+    if (!currentFloor || !layerVis.rooms) return null;
     return _findRoomAt(p, detectedRooms, currentFloor.walls);
   }
 
@@ -4103,7 +4104,7 @@
   {#if showLayerPanel}
     <div class="absolute bottom-12 right-2 z-20 bg-white rounded-lg shadow-lg border border-gray-200 p-3 text-xs min-w-[160px]">
       <div class="font-semibold text-gray-700 mb-2">Layers</div>
-      {#each [['walls','Walls'],['doors','Doors'],['windows','Windows'],['furniture','Furniture'],['stairs','Stairs'],['columns','Columns'],['guides','Guides'],['measurements','Measurements']] as [key, label]}
+      {#each [['rooms','Rooms'],['walls','Walls'],['doors','Doors'],['windows','Windows'],['furniture','Furniture'],['stairs','Stairs'],['columns','Columns'],['guides','Guides'],['measurements','Measurements']] as [key, label]}
         <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
           <input type="checkbox" checked={(layerVis as Record<string, boolean>)[key]} onchange={() => layerVisibility.update(v => ({ ...v, [key]: !(v as Record<string, boolean>)[key] }))} class="accent-blue-500" />
           <span>{label}</span>

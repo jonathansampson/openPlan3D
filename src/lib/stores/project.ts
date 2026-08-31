@@ -878,8 +878,8 @@ export function moveTextAnnotation(id: string, position: { x: number; y: number 
 }
 
 // Layer visibility store (used by LayersPanel and FloorPlanCanvas)
-export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; entourage: boolean }>({
-  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true,
+export const layerVisibility = writable<{ rooms: boolean; walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; entourage: boolean }>({
+  rooms: true, walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true,
 });
 
 // --- Lock ---

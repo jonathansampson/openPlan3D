@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { activeFloor, selectedElementId, layerVisibility } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, detectedRoomsStore, layerVisibility } from '$lib/stores/project';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
-  import type { Floor } from '$lib/models/types';
+  import type { Floor, Room } from '$lib/models/types';
 
   let floor: Floor | null = $state(null);
   activeFloor.subscribe(f => { floor = f; });
@@ -10,7 +10,15 @@
   let selId: string | null = $state(null);
   selectedElementId.subscribe(id => { selId = id; });
 
-  let vis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
+  // Rooms are derived from the walls, so they come from the same store the
+  // canvas draws from rather than from the floor
+  let rooms: Room[] = $state([]);
+  detectedRoomsStore.subscribe(r => { rooms = r; });
+
+  let selRoomId: string | null = $state(null);
+  selectedRoomId.subscribe(id => { selRoomId = id; });
+
+  let vis = $state({ rooms: true, walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
   layerVisibility.subscribe(v => { vis = v; });
 
   // Collapsed state per category
@@ -24,8 +32,14 @@
     layerVisibility.update(v => ({ ...v, [cat]: !v[cat] }));
   }
 
-  function select(id: string) {
-    selectedElementId.set(id);
+  function select(id: string, isRoom: boolean) {
+    if (isRoom) {
+      selectedRoomId.set(id);
+      selectedElementId.set(null);
+    } else {
+      selectedElementId.set(id);
+      selectedRoomId.set(null);
+    }
   }
 
   interface Category {
@@ -38,6 +52,11 @@
   let categories: Category[] = $derived.by(() => {
     if (!floor) return [];
     const cats: Category[] = [];
+
+    cats.push({
+      key: 'rooms', label: 'Rooms', icon: '🏠',
+      items: rooms.map((r, i) => ({ id: r.id, label: r.name || `Room ${i + 1}`, icon: '⬛' })),
+    });
 
     cats.push({
       key: 'walls', label: 'Walls', icon: '🧱',
@@ -145,12 +164,13 @@
         <!-- Items -->
         {#if !collapsed[cat.key]}
           {#each cat.items as item}
+            {@const activeId = cat.key === 'rooms' ? selRoomId : selId}
             <button
               class="w-full flex items-center gap-1.5 pl-7 pr-2 py-1 hover:bg-blue-50 text-left transition-colors"
-              class:bg-blue-100={selId === item.id}
-              class:text-blue-700={selId === item.id}
+              class:bg-blue-100={activeId === item.id}
+              class:text-blue-700={activeId === item.id}
               class:opacity-40={!vis[cat.key]}
-              onclick={() => select(item.id)}
+              onclick={() => select(item.id, cat.key === 'rooms')}
             >
               <span class="text-[10px]">{item.icon}</span>
               <span class="truncate flex-1">{item.label}</span>
