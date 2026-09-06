@@ -3,7 +3,7 @@
    * ElevationView — integrated face-on view + editor for a single wall.
    * Fills the canvas area (replaces the plan canvas while active — sidebars stay).
    * Shows the wall as a rectangle (length × height) with its doors and windows,
-   * a heavier floor line and a light 0.5 m grid. Openings can be selected and
+   * a heavier floor line and a light grid at the project's grid size. Openings can be selected and
    * dragged: horizontally to move them along the wall, and windows vertically
    * to change their sill height.
    *
@@ -19,9 +19,10 @@
   const DEFAULT_WALL_HEIGHT = 240; // cm — fallback when a wall has no height
   const DEFAULT_DOOR_HEIGHT = 210; // cm
   const DEFAULT_SILL = 90;         // cm
-  const GRID_STEP = 50;            // cm (0.5 m)
 
   let units = $derived($projectSettings.units);
+  let gridStep = $derived($projectSettings.gridSize);
+  let showGrid = $derived($projectSettings.showGrid);
 
   let wall = $derived.by(() => {
     const id = $elevationWallId;
@@ -334,12 +335,14 @@
   }
 
   $effect(() => {
-    // Reactive dependencies: geometry, openings, selection, hover, units
+    // Reactive dependencies: geometry, openings, selection, hover, units, grid
     const c = canvas;
     const g = geom;
     const sel = selectedOpeningId;
     const hov = hoverOpeningId;
     const u = units;
+    const gs = gridStep;
+    const sg = showGrid;
     const rects = openingRects();
     if (!c) return;
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -361,24 +364,27 @@
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(ox, wallTop, wallLen * scale, wallH * scale);
 
-    // 0.5 m grid (light), clipped to the wall face
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(ox, wallTop, wallLen * scale, wallH * scale);
-    ctx.clip();
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = GRID_STEP; x < wallLen; x += GRID_STEP) {
-      ctx.moveTo(xAt(x), wallTop);
-      ctx.lineTo(xAt(x), floorY);
+    // Grid (light), clipped to the wall face. Same spacing as the plan grid,
+    // dropped entirely once the lines would be too dense to read.
+    if (showGrid && gridStep * scale >= 4) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(ox, wallTop, wallLen * scale, wallH * scale);
+      ctx.clip();
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = gridStep; x < wallLen; x += gridStep) {
+        ctx.moveTo(xAt(x), wallTop);
+        ctx.lineTo(xAt(x), floorY);
+      }
+      for (let y = gridStep; y < wallH; y += gridStep) {
+        ctx.moveTo(ox, yAt(y));
+        ctx.lineTo(wallRight, yAt(y));
+      }
+      ctx.stroke();
+      ctx.restore();
     }
-    for (let y = GRID_STEP; y < wallH; y += GRID_STEP) {
-      ctx.moveTo(ox, yAt(y));
-      ctx.lineTo(wallRight, yAt(y));
-    }
-    ctx.stroke();
-    ctx.restore();
 
     // Openings (doors first, then windows on top — same order as hit testing)
     for (const r of rects) {

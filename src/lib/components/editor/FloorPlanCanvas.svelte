@@ -11,7 +11,7 @@
   import ContextMenu from './ContextMenu.svelte';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
-  import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
+  import { projectSettings, formatLength, formatArea, gridSteps, majorGridSpacing } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
   import type { CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, entourageAspect, DIM_FONT_SIZE_COMPACT } from '$lib/utils/canvasRenderer';
@@ -93,8 +93,7 @@
   let draggingTextAnnotationId: string | null = $state(null);
   let textAnnotationDragOffset: Point = { x: 0, y: 0 };
 
-  // Grid toggle
-  let showGrid = $state(true);
+  // Grid toggle — mirrors projectSettings.showGrid; write via the store
 
   // Ruler toggle
   let showRulers = $state(true);
@@ -112,7 +111,7 @@
     units: 'metric', showDimensions: true, showExternalDimensions: true,
     showInternalDimensions: false, showExtensionLines: true,
     showObjectDistance: true, dimensionLineColor: '#1e293b',
-    wallMeasureMode: 'centerline', snapToGrid: true, gridSize: 25,
+    wallMeasureMode: 'centerline', snapToGrid: true, gridSize: 25, showGrid: true,
   });
   projectSettings.subscribe((s) => {
     dimSettings = s;
@@ -128,8 +127,6 @@
   let detectedRooms: Room[] = $state([]);
   let lastWallHash = '';
 
-  const GRID = 20;
-  const SNAP = 10;
   const MAGNETIC_SNAP = 15;
   const WALL_SNAP_DIST = 30; // cm — distance threshold to snap furniture to wall
   const FURNITURE_SNAP_DIST = 15; // cm — distance threshold to snap furniture to furniture
@@ -147,6 +144,8 @@
   let currentSnapFurnitureEnabled: boolean = $state(true);
   let currentSnapToGrid: boolean = $state(true);
   let currentGridSize: number = $state(25);
+  let showGrid: boolean = $state(true);
+  let gridSizeMenuOpen: boolean = $state(false);
   let isPlacingStair: boolean = $state(false);
   let draggingStairId: string | null = $state(null);
   let stairDragOffset: Point = { x: 0, y: 0 };
@@ -438,9 +437,11 @@
   }
 
   function snap(v: number): number {
-    if (!currentSnapEnabled) return v;
-    const step = currentSnapToGrid ? currentGridSize : SNAP;
-    return Math.round(v / step) * step;
+    // Either toggle off means free placement: the master magnet (snapEnabled)
+    // or grid snap on its own. Magnetic and angle snapping still apply while
+    // only the grid is off.
+    if (!currentSnapEnabled || !currentSnapToGrid) return v;
+    return Math.round(v / currentGridSize) * currentGridSize;
   }
 
   function screenToWorld(sx: number, sy: number): Point {
@@ -540,7 +541,7 @@
 
   function drawGrid() {
     if (!ctx || !showGrid) return;
-    const step = (currentSnapToGrid ? currentGridSize : GRID) * zoom;
+    const step = currentGridSize * zoom;
     if (step < 4) return;
 
     // Minor grid
@@ -555,8 +556,8 @@
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
     }
 
-    // Major grid (every 100cm / 1m)
-    const majorStep = 100 * zoom;
+    // Major grid — a whole number of cells, so it lands on intersections
+    const majorStep = majorGridSpacing(currentGridSize, dimSettings.units) * zoom;
     if (majorStep >= 20) {
       ctx.strokeStyle = '#d1d5db';
       ctx.lineWidth = 0.8;
@@ -1959,7 +1960,7 @@
     const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; markDirty(); });
     const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; markDirty(); });
     const unsub_snapfurn = snapFurnitureEnabled.subscribe((v) => { currentSnapFurnitureEnabled = v; markDirty(); });
-    const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; markDirty(); });
+    const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; showGrid = s.showGrid; markDirty(); });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; markDirty(); });
     const unsubEnt1 = placingEntourageId.subscribe((id) => { currentEntourageDefId = id; markDirty(); });
     const unsubEnt2 = currentProject.subscribe((pr) => { customEntourageDefs = pr?.customEntourage; markDirty(); });
@@ -2218,6 +2219,7 @@
   function onMouseDown(e: MouseEvent) {
     markDirty();
     canvasGestureActive = true;
+    gridSizeMenuOpen = false;
     // Shift belongs to selection here — it adds to the multi-select and makes a
     // marquee additive — so panning is the middle button, Space+drag or pan mode
     if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode))) {
@@ -3565,10 +3567,17 @@
     if (handleGlobalShortcut(e, shortcutCtx)) return;
 
     if (e.key === 's' || e.key === 'S') {
-      projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }));
+      projectSettings.toggleSnapToGrid();
     }
     if (e.key === 'g' || e.key === 'G') {
-      showGrid = !showGrid;
+      if (e.shiftKey) projectSettings.resetGrid();
+      else projectSettings.toggleGrid();
+    }
+    if (e.key === '[') {
+      projectSettings.decreaseGrid();
+    }
+    if (e.key === ']') {
+      projectSettings.increaseGrid();
     }
     if (e.key === 'm' || e.key === 'M') {
       measuring = !measuring;
@@ -4081,10 +4090,31 @@
     {/if}
     <span>Zoom: {Math.round(zoom * 100)}%</span>
     <button class="hover:text-gray-700" onclick={() => zoomToFit()} title="Zoom to Fit (F)">⊞ Fit</button>
-    <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title="Toggle Grid (G)">
-      {showGrid ? '▦' : '▢'} Grid
-    </button>
-    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title="Toggle Snap to Grid (S)">
+    <div class="relative flex items-center gap-1">
+      <button class="hover:text-gray-700" onclick={() => projectSettings.toggleGrid()} title="Toggle Grid (G)">
+        {showGrid ? '▦' : '▢'} Grid
+      </button>
+      <button
+        class="hover:text-gray-700 tabular-nums"
+        onclick={() => gridSizeMenuOpen = !gridSizeMenuOpen}
+        title="Grid size — [ smaller, ] larger, Shift+G reset"
+      >{formatLength(currentGridSize, dimSettings.units)} ▾</button>
+      {#if gridSizeMenuOpen}
+        <div class="absolute bottom-full right-0 mb-1 z-20 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[7rem]">
+          {#each gridSteps(dimSettings.units) as size}
+            <button
+              class="w-full text-left px-3 py-1 tabular-nums hover:bg-gray-50 {size === currentGridSize ? 'text-blue-600 font-medium' : 'text-gray-600'}"
+              onclick={() => { projectSettings.setGridSize(size); gridSizeMenuOpen = false; }}
+            >{formatLength(size, dimSettings.units)}</button>
+          {/each}
+          <button
+            class="w-full text-left px-3 py-1 mt-1 border-t border-gray-100 text-gray-500 hover:bg-gray-50"
+            onclick={() => { projectSettings.resetGrid(); gridSizeMenuOpen = false; }}
+          >Reset <kbd class="text-gray-400">⇧G</kbd></button>
+        </div>
+      {/if}
+    </div>
+    <button class="hover:text-gray-700" onclick={() => projectSettings.toggleSnapToGrid()} title="Toggle Snap to Grid (S)">
       {currentSnapToGrid ? '🧲' : '↔'} Snap
     </button>
     <button class="hover:text-gray-700" onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))} title="Toggle Furniture">

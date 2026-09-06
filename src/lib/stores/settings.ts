@@ -10,7 +10,59 @@ export interface ProjectSettings {
   dimensionLineColor: string;            // color for dimension lines/text
   wallMeasureMode: 'centerline' | 'edge'; // measure walls center-to-center or edge-to-edge (clear span)
   snapToGrid: boolean;                   // snap elements to grid when dragging
-  gridSize: number;                      // grid snap size in cm (default 25)
+  gridSize: number;                      // grid spacing in cm, always — see GRID_STEPS
+  showGrid: boolean;                     // draw the grid on the plan canvas
+}
+
+type Units = ProjectSettings['units'];
+
+// ── Grid spacing ─────────────────────────────────────────────────────
+// Geometry is centimetres throughout the app, so gridSize is centimetres in
+// both unit systems. The ladders below are the rungs the stepper climbs, so
+// that every stop is a round number in the units on screen.
+
+const METRIC_GRID_STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200];
+const IMPERIAL_GRID_STEPS = [2.54, 7.62, 15.24, 30.48, 60.96, 152.4, 304.8]; // 1" 3" 6" 1' 2' 5' 10'
+
+export function gridSteps(units: Units): number[] {
+  return units === 'imperial' ? IMPERIAL_GRID_STEPS : METRIC_GRID_STEPS;
+}
+
+/** The spacing 'Reset grid' returns to: 25 cm, or 1 ft for imperial. */
+export function defaultGridSize(units: Units): number {
+  return units === 'imperial' ? 30.48 : 25;
+}
+
+function nearestGridIndex(size: number, units: Units): number {
+  const steps = gridSteps(units);
+  let best = 0;
+  for (let i = 1; i < steps.length; i++) {
+    if (Math.abs(steps[i] - size) < Math.abs(steps[best] - size)) best = i;
+  }
+  return best;
+}
+
+/**
+ * The rung one step from `size` in direction `dir`, clamped at both ends of the
+ * ladder. A size that sits between rungs — which is what switching unit systems
+ * leaves behind — lands on the rung it is stepping towards rather than skipping
+ * past it.
+ */
+export function stepGridSize(size: number, units: Units, dir: 1 | -1): number {
+  const steps = gridSteps(units);
+  const i = nearestGridIndex(size, units);
+  if (dir > 0) return steps[steps[i] > size ? i : Math.min(i + 1, steps.length - 1)];
+  return steps[steps[i] < size ? i : Math.max(i - 1, 0)];
+}
+
+/**
+ * Spacing of the heavier grid lines: the fewest whole grid cells spanning at
+ * least a metre (a foot in imperial), and never fewer than two. Being a whole
+ * multiple keeps them on grid intersections at any grid size.
+ */
+export function majorGridSpacing(gridSize: number, units: Units): number {
+  const unit = units === 'imperial' ? 30.48 : 100;
+  return Math.max(2, Math.ceil(unit / gridSize)) * gridSize;
 }
 
 const defaultSettings: ProjectSettings = {
@@ -24,6 +76,7 @@ const defaultSettings: ProjectSettings = {
   wallMeasureMode: 'centerline',
   snapToGrid: true,
   gridSize: 25,
+  showGrid: true,
 };
 
 // Load from localStorage if available
@@ -31,7 +84,12 @@ function loadSettings(): ProjectSettings {
   if (typeof window === 'undefined') return { ...defaultSettings };
   try {
     const saved = localStorage.getItem('o3d_settings');
-    if (saved) return { ...defaultSettings, ...JSON.parse(saved) };
+    if (saved) {
+      const merged: ProjectSettings = { ...defaultSettings, ...JSON.parse(saved) };
+      // Every snap divides by gridSize, so a corrupt one would wedge the canvas
+      if (!(merged.gridSize > 0)) merged.gridSize = defaultSettings.gridSize;
+      return merged;
+    }
   } catch {}
   return { ...defaultSettings };
 }
@@ -58,6 +116,28 @@ function createSettingsStore() {
     },
     reset() {
       this.set({ ...defaultSettings });
+    },
+    // Grid controls. Routed through the store so the keyboard shortcuts, the
+    // status bar, the settings dialog and the command palette all step the
+    // same ladder.
+    increaseGrid() {
+      this.update((s) => ({ ...s, gridSize: stepGridSize(s.gridSize, s.units, 1) }));
+    },
+    decreaseGrid() {
+      this.update((s) => ({ ...s, gridSize: stepGridSize(s.gridSize, s.units, -1) }));
+    },
+    resetGrid() {
+      this.update((s) => ({ ...s, gridSize: defaultGridSize(s.units) }));
+    },
+    setGridSize(size: number) {
+      if (!(size > 0)) return;
+      this.update((s) => ({ ...s, gridSize: size }));
+    },
+    toggleGrid() {
+      this.update((s) => ({ ...s, showGrid: !s.showGrid }));
+    },
+    toggleSnapToGrid() {
+      this.update((s) => ({ ...s, snapToGrid: !s.snapToGrid }));
     },
   };
 }

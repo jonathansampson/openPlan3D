@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { projectSettings } from '$lib/stores/settings';
+  import { projectSettings, formatLength, gridSteps } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
   import { currentProject, updateProjectName } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
@@ -97,6 +97,7 @@
     wallMeasureMode: 'centerline',
     snapToGrid: true,
     gridSize: 25,
+    showGrid: true,
   });
 
   projectSettings.subscribe((s) => { settings = { ...s }; });
@@ -210,8 +211,51 @@
             </div>
           </div>
 
+          <!-- Grid spacing (also [ / ] on the canvas) -->
+          <div class="flex items-center justify-between mb-5">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300" title="Spacing of the plan grid, and the step elements snap to">Grid size</span>
+            <div class="flex items-center gap-2">
+              <select
+                class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-100 outline-none focus:ring-2 focus:ring-slate-500"
+                value={settings.gridSize}
+                onchange={(e) => updateSetting('gridSize', parseFloat((e.target as HTMLSelectElement).value))}
+              >
+                {#if !gridSteps(settings.units).includes(settings.gridSize)}
+                  <option value={settings.gridSize}>{formatLength(settings.gridSize, settings.units)}</option>
+                {/if}
+                {#each gridSteps(settings.units) as size}
+                  <option value={size}>{formatLength(size, settings.units)}</option>
+                {/each}
+              </select>
+              <button
+                class="px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                onclick={() => projectSettings.resetGrid()}
+              >Reset</button>
+            </div>
+          </div>
+
           <!-- Toggle options -->
           <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl divide-y divide-gray-200 dark:divide-gray-600">
+            <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
+              <span class="text-sm text-gray-700">Show Grid</span>
+              <input
+                type="checkbox"
+                checked={settings.showGrid}
+                onchange={(e) => updateSetting('showGrid', (e.target as HTMLInputElement).checked)}
+                class="w-10 h-5 rounded-full appearance-none cursor-pointer bg-gray-300 checked:bg-slate-700 relative transition-colors
+                  before:content-[''] before:absolute before:w-4 before:h-4 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-5"
+              />
+            </label>
+            <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
+              <span class="text-sm text-gray-700">Snap to Grid</span>
+              <input
+                type="checkbox"
+                checked={settings.snapToGrid}
+                onchange={(e) => updateSetting('snapToGrid', (e.target as HTMLInputElement).checked)}
+                class="w-10 h-5 rounded-full appearance-none cursor-pointer bg-gray-300 checked:bg-slate-700 relative transition-colors
+                  before:content-[''] before:absolute before:w-4 before:h-4 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-5"
+              />
+            </label>
             <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
               <span class="text-sm text-gray-700">Dimensions</span>
               <input

@@ -314,6 +314,8 @@
                   'Tab        Toggle 2D/3D',
                   'F          Zoom to fit',
                   'G          Toggle grid',
+                  '[ / ]      Grid size smaller / larger',
+                  '⇧+G        Reset grid size',
                   'L          Toggle layers',
                   '?          Show shortcuts',
                   '',
@@ -399,6 +401,8 @@
                 <div class="flex justify-between"><span class="text-gray-600">Toggle 2D / 3D</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Tab</kbd></div>
                 <div class="flex justify-between"><span class="text-gray-600">Zoom to fit</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">F</kbd></div>
                 <div class="flex justify-between"><span class="text-gray-600">Toggle grid</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">G</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Grid smaller / larger</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">[ / ]</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Reset grid size</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">⇧+G</kbd></div>
                 <div class="flex justify-between"><span class="text-gray-600">Toggle layers</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">L</kbd></div>
                 <div class="flex justify-between"><span class="text-gray-600">Show shortcuts</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">?</kbd></div>
               </div>
