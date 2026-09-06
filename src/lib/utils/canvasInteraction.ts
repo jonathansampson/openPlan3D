@@ -14,10 +14,7 @@ export interface CanvasState {
   camY: number;
 }
 
-export const GRID = 20;
-export const SNAP = 10;
 export const MAGNETIC_SNAP = 15;
-export const WALL_SNAP_DIST = 30;
 
 export function screenToWorld(cs: CanvasState, sx: number, sy: number): Point {
   return { x: (sx - cs.width / 2) / cs.zoom + cs.camX, y: (sy - cs.height / 2) / cs.zoom + cs.camY };
@@ -25,12 +22,6 @@ export function screenToWorld(cs: CanvasState, sx: number, sy: number): Point {
 
 export function worldToScreen(cs: CanvasState, wx: number, wy: number): { x: number; y: number } {
   return { x: (wx - cs.camX) * cs.zoom + cs.width / 2, y: (wy - cs.camY) * cs.zoom + cs.height / 2 };
-}
-
-export function snap(v: number, enabled: boolean, snapToGrid: boolean, gridSize: number): number {
-  if (!enabled) return v;
-  const step = snapToGrid ? gridSize : SNAP;
-  return Math.round(v / step) * step;
 }
 
 export function magneticSnap(
