@@ -82,6 +82,10 @@ export const furnitureCatalog: FurnitureDef[] = [
   // One rail of a mat frame kit — 78" x 3" x 1.25" oak, three to a kit
   { id: 'mat_frame_rail', name: 'Frame Rail', category: 'Gym', icon: '📏', color: '#c8a165', width: 198.12, depth: 7.62, height: 3.175 },
 
+  // Game Room — imperial sizes converted from inches (2.54 cm to the inch)
+  // Upright cabinet, 18.82" W x 22.44" D x 61" H
+  { id: 'arcade_machine', name: 'Arcade Machine', category: 'Game Room', icon: '🕹️', color: '#312e81', width: 47.8028, depth: 56.9976, height: 154.94 },
+
   // Outdoor Furniture
   { id: 'patio_table', name: 'Patio Table', category: 'Outdoor Furniture', icon: '🪑', color: '#92400e', width: 120, depth: 120, height: 75 },
   { id: 'patio_chair', name: 'Patio Chair', category: 'Outdoor Furniture', icon: '🪑', color: '#a16207', width: 55, depth: 55, height: 85 },

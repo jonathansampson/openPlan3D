@@ -734,6 +734,39 @@ const drawStorage: DrawFn = (ctx, w, d) => {
   ctx.fill();
 };
 
+/**
+ * Upright arcade cabinet from above. The screen sits in a well at the back and
+ * the control panel deck overhangs the front, so the player stands on the +y
+ * side — the same way round as the 3D model.
+ */
+const drawArcadeMachine: DrawFn = (ctx, w, d, color) => {
+  roundRect(ctx, -w / 2, -d / 2, w, d, 2);
+  ctx.fill(); ctx.stroke();
+
+  // Screen well
+  ctx.fillStyle = '#00000045';
+  roundRect(ctx, -w * 0.42, -d * 0.36, w * 0.84, d * 0.42, 1);
+  ctx.fill();
+
+  // Control panel deck
+  ctx.fillStyle = color + '90';
+  roundRect(ctx, -w * 0.46, d * 0.12, w * 0.92, d * 0.3, 1);
+  ctx.fill(); ctx.stroke();
+
+  // Joystick, then a row of buttons
+  ctx.fillStyle = '#111827';
+  const deckY = d * 0.27;
+  const r = Math.max(0.7, Math.min(w, d) * 0.05);
+  ctx.beginPath();
+  ctx.arc(-w * 0.28, deckY, r * 1.4, 0, Math.PI * 2);
+  ctx.fill();
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(w * (0.02 + i * 0.15), deckY, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+};
+
 const drawGenericTable: DrawFn = (ctx, w, d) => {
   roundRect(ctx, -w/2, -d/2, w, d, 3);
   ctx.fill(); ctx.stroke();
@@ -1019,6 +1052,8 @@ const iconDrawers: Record<string, DrawFn> = {
   tatami_tri: drawTatamiTriangle,
   wall_pad: drawWallPad,
   mat_frame_rail: drawMatFrameRail,
+  // Game Room
+  arcade_machine: drawArcadeMachine,
   potted_plant: drawPlant,
   floor_plant: drawPlant,
   hanging_plant: drawPlant,

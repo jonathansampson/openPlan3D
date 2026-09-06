@@ -322,6 +322,7 @@
     'Dining': '#f59e0b',
     'Decor': '#c2956b',
     'Gym': '#0f766e',
+    'Game Room': '#312e81',
     'Lighting': '#fbbf24',
     'Outdoor Furniture': '#b45309',
     'Landscaping': '#16a34a',

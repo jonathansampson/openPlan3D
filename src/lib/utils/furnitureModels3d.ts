@@ -151,6 +151,9 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'mat_frame_rail':
       createMatFrameRail(group, w, d, h, color);
       break;
+    case 'arcade_machine':
+      createArcadeMachine(group, w, d, h, color);
+      break;
     case 'potted_plant':
       createPottedPlant(group, w, d, h, color);
       break;
@@ -1190,6 +1193,90 @@ function createMatFrameRail(group: THREE.Group, w: number, d: number, h: number,
   geo.rotateY(Math.PI / 2);
 
   group.add(new THREE.Mesh(geo, createMaterial(color, 0.65, 0.0)));
+}
+
+/**
+ * Upright arcade cabinet. A full-depth base carries the control panel deck;
+ * above it a shallower housing set against the back holds the screen, with the
+ * lit marquee across its top. The player stands on the +Z side, so backing the
+ * cabinet against a wall leaves the controls reachable.
+ */
+function createArcadeMachine(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const cabinet = createMaterial(color, 0.6, 0.05);
+  const baseH = h * 0.56;         // control panel sits at about waist height
+  const upperD = d * 0.62;        // the screen housing is shallower than the base
+  const upperH = h - baseH;
+  const upperZ = -d / 2 + upperD / 2;
+  const deckD = d - upperD;       // the control panel fills what the housing gives up
+
+  const base = new THREE.Mesh(new THREE.BoxGeometry(w, baseH, d), cabinet);
+  base.position.set(0, baseH / 2, 0);
+  group.add(base);
+
+  const upper = new THREE.Mesh(new THREE.BoxGeometry(w, upperH, upperD), cabinet);
+  upper.position.set(0, baseH + upperH / 2, upperZ);
+  group.add(upper);
+
+  // Coin door, flush with the base front so the cabinet keeps its footprint
+  const coinDoorThickness = h * 0.006;
+  const coinDoor = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 0.45, baseH * 0.16, coinDoorThickness),
+    createMaterial('#4b5563', 0.5, 0.4),
+  );
+  coinDoor.position.set(0, baseH * 0.34, d / 2 - coinDoorThickness / 2);
+  group.add(coinDoor);
+
+  // Screen, set into the front of the housing
+  const screen = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 0.82, upperH * 0.46, h * 0.01),
+    createMaterial('#0b1020', 0.15, 0.4),
+  );
+  screen.position.set(0, baseH + upperH * 0.34, upperZ + upperD / 2 + h * 0.004);
+  group.add(screen);
+
+  const marqueeH = upperH * 0.16;
+  const marquee = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 0.94, marqueeH, h * 0.012),
+    createMaterial('#fbbf24', 0.35, 0.0),
+  );
+  marquee.position.set(0, h - marqueeH * 0.9, upperZ + upperD / 2 + h * 0.005);
+  group.add(marquee);
+
+  // Control panel deck, filling the step the housing leaves at the front
+  const panel = new THREE.Group();
+  const deckThickness = h * 0.02;
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 0.98, deckThickness, deckD),
+    createMaterial('#111827', 0.6, 0.1),
+  );
+  panel.add(deck);
+
+  const stickH = Math.min(h * 0.035, deckD * 0.4);
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(w * 0.012, w * 0.012, stickH, 8),
+    createMaterial('#9ca3af', 0.3, 0.7),
+  );
+  shaft.position.set(-w * 0.26, deckThickness / 2 + stickH / 2, 0);
+  panel.add(shaft);
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(w * 0.035, 10, 8),
+    createMaterial('#dc2626', 0.3, 0.1),
+  );
+  ball.position.set(-w * 0.26, deckThickness / 2 + stickH, 0);
+  panel.add(ball);
+
+  const buttonColors = ['#ef4444', '#facc15', '#3b82f6'];
+  for (let i = 0; i < buttonColors.length; i++) {
+    const button = new THREE.Mesh(
+      new THREE.CylinderGeometry(w * 0.03, w * 0.03, h * 0.008, 10),
+      createMaterial(buttonColors[i], 0.4, 0.1),
+    );
+    button.position.set(w * (0.02 + i * 0.13), deckThickness / 2, 0);
+    panel.add(button);
+  }
+
+  panel.position.set(0, baseH + deckThickness / 2, d / 2 - deckD / 2);
+  group.add(panel);
 }
 
 function createRoundRug(group: THREE.Group, w: number, d: number, h: number, color: string): void {
