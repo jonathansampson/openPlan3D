@@ -1903,27 +1903,43 @@
       return [{ width: wallLen, height: wallH, offsetX: wallLen / 2, offsetY: 0 }];
     }
 
-    openings.sort((a, b) => a.pos - b.pos);
+    // Every opening edge, clamped to the wall, cuts the face into a grid. A
+    // cell is wall wherever it falls outside all of the openings, which holds
+    // however the openings are arranged — including two sharing a span, as a
+    // window stacked over a door does.
+    const clamp = (v: number, hi: number) => Math.max(0, Math.min(hi, v));
+    const uniqueSorted = (vals: number[]) =>
+      [...new Set(vals.map((v) => Math.round(v * 1e6) / 1e6))].sort((a, b) => a - b);
+
+    const xs = uniqueSorted([
+      0, wallLen,
+      ...openings.flatMap((o) => [clamp(o.pos - o.width / 2, wallLen), clamp(o.pos + o.width / 2, wallLen)]),
+    ]);
+    const ys = uniqueSorted([
+      0, wallH,
+      ...openings.flatMap((o) => [clamp(o.bottomY, wallH), clamp(o.topY, wallH)]),
+    ]);
+
+    const isHole = (x: number, y: number) =>
+      openings.some((o) => x > o.pos - o.width / 2 && x < o.pos + o.width / 2 && y > o.bottomY && y < o.topY);
+
     const segs: WallSegment[] = [];
-    let cursor = 0;
-
-    for (const op of openings) {
-      const left = op.pos - op.width / 2;
-      const right = op.pos + op.width / 2;
-      if (left > cursor) {
-        segs.push({ width: left - cursor, height: wallH, offsetX: cursor + (left - cursor) / 2, offsetY: 0 });
+    for (let row = 0; row < ys.length - 1; row++) {
+      const y0 = ys[row], y1 = ys[row + 1];
+      if (y1 - y0 < 1e-6) continue;
+      const midY = (y0 + y1) / 2;
+      // Walk the row and merge neighboring solid cells into one box
+      let runStart: number | null = null;
+      for (let col = 0; col <= xs.length - 1; col++) {
+        const solid = col < xs.length - 1
+          && xs[col + 1] - xs[col] > 1e-6
+          && !isHole((xs[col] + xs[col + 1]) / 2, midY);
+        if (solid && runStart === null) runStart = xs[col];
+        if (!solid && runStart !== null) {
+          segs.push({ width: xs[col] - runStart, height: y1 - y0, offsetX: (runStart + xs[col]) / 2, offsetY: y0 });
+          runStart = null;
+        }
       }
-      if (op.topY < wallH) {
-        segs.push({ width: op.width, height: wallH - op.topY, offsetX: op.pos, offsetY: op.topY });
-      }
-      if (op.bottomY > 0) {
-        segs.push({ width: op.width, height: op.bottomY, offsetX: op.pos, offsetY: 0 });
-      }
-      cursor = Math.max(cursor, right);
-    }
-
-    if (cursor < wallLen) {
-      segs.push({ width: wallLen - cursor, height: wallH, offsetX: cursor + (wallLen - cursor) / 2, offsetY: 0 });
     }
 
     return segs;
