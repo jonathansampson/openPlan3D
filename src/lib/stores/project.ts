@@ -645,34 +645,49 @@ export const placingDoorType = writable<Door['type']>('single');
 /** Window subtype currently selected for placement */
 export const placingWindowType = writable<import('$lib/models/types').Window['type']>('standard');
 
-/** Duplicate a door onto the same wall */
-export function duplicateDoor(id: string): string | null {
+/**
+ * Duplicate a door onto the same wall, nudged along it so the copy does not sit
+ * under the original. Passing targetWallId puts the copy on that wall at the
+ * same position instead, which is what duplicating a wall along with the
+ * openings in it needs.
+ */
+export function duplicateDoor(id: string, targetWallId?: string): string | null {
   const p = get(currentProject);
   if (!p) return null;
   const floor = p.floors.find(f => f.id === p.activeFloorId);
   if (!floor) return null;
   const d = floor.doors.find(d => d.id === id);
   if (!d) return null;
-  const newPos = Math.min(1, d.position + 0.1);
+  const ontoCopiedWall = targetWallId !== undefined && targetWallId !== d.wallId;
   const newId = uid();
   mutate(f => {
-    f.doors.push({ ...d, id: newId, position: newPos });
+    f.doors.push({
+      ...d,
+      id: newId,
+      wallId: ontoCopiedWall ? targetWallId : d.wallId,
+      position: ontoCopiedWall ? d.position : Math.min(1, d.position + 0.1),
+    });
   });
   return newId;
 }
 
-/** Duplicate a window onto the same wall */
-export function duplicateWindow(id: string): string | null {
+/** Duplicate a window onto the same wall, or onto targetWallId — see duplicateDoor */
+export function duplicateWindow(id: string, targetWallId?: string): string | null {
   const p = get(currentProject);
   if (!p) return null;
   const floor = p.floors.find(f => f.id === p.activeFloorId);
   if (!floor) return null;
   const w = floor.windows.find(w => w.id === id);
   if (!w) return null;
-  const newPos = Math.min(1, w.position + 0.1);
+  const ontoCopiedWall = targetWallId !== undefined && targetWallId !== w.wallId;
   const newId = uid();
   mutate(f => {
-    f.windows.push({ ...w, id: newId, position: newPos });
+    f.windows.push({
+      ...w,
+      id: newId,
+      wallId: ontoCopiedWall ? targetWallId : w.wallId,
+      position: ontoCopiedWall ? w.position : Math.min(1, w.position + 0.1),
+    });
   });
   return newId;
 }
@@ -688,6 +703,51 @@ export function duplicateFurniture(id: string): string | null {
   const newId = uid();
   mutate(f => {
     f.furniture.push({ ...fi, id: newId, position: { x: fi.position.x + 30, y: fi.position.y + 30 } });
+  });
+  return newId;
+}
+
+/** Duplicate a stair */
+export function duplicateStair(id: string): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  const st = floor?.stairs?.find(s => s.id === id);
+  if (!st) return null;
+  const newId = uid();
+  mutate(f => {
+    if (!f.stairs) f.stairs = [];
+    f.stairs.push({ ...st, id: newId, position: { x: st.position.x + 30, y: st.position.y + 30 } });
+  });
+  return newId;
+}
+
+/** Duplicate a column */
+export function duplicateColumn(id: string): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  const col = floor?.columns?.find(c => c.id === id);
+  if (!col) return null;
+  const newId = uid();
+  mutate(f => {
+    if (!f.columns) f.columns = [];
+    f.columns.push({ ...col, id: newId, position: { x: col.position.x + 30, y: col.position.y + 30 } });
+  });
+  return newId;
+}
+
+/** Duplicate an entourage item */
+export function duplicateEntourage(id: string): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  const en = floor?.entourage?.find(e => e.id === id);
+  if (!en) return null;
+  const newId = uid();
+  mutate(f => {
+    if (!f.entourage) f.entourage = [];
+    f.entourage.push({ ...en, id: newId, position: { x: en.position.x + 30, y: en.position.y + 30 } });
   });
   return newId;
 }

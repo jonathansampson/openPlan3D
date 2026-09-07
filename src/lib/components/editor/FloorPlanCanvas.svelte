@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, snapFurnitureEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, duplicateStair, duplicateColumn, duplicateEntourage, moveWallParallel, splitWall, snapEnabled, snapFurnitureEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef, EntourageItem } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -3783,6 +3783,64 @@
     ctxMenuVisible = true;
   }
 
+  /** Duplicate one element of any type, returning the copy's id */
+  function duplicateElement(id: string, targetWallId?: string): string | null {
+    const f = currentFloor;
+    if (!f) return null;
+    if (f.walls.some(w => w.id === id)) return duplicateWall(id);
+    if (f.doors.some(d => d.id === id)) return duplicateDoor(id, targetWallId);
+    if (f.windows.some(w => w.id === id)) return duplicateWindow(id, targetWallId);
+    if (f.furniture.some(fi => fi.id === id)) return duplicateFurniture(id);
+    if (f.stairs?.some(s => s.id === id)) return duplicateStair(id);
+    if (f.columns?.some(c => c.id === id)) return duplicateColumn(id);
+    if (f.entourage?.some(en => en.id === id)) return duplicateEntourage(id);
+    return null;
+  }
+
+  /**
+   * Duplicate everything selected and select the copies, so the new set can be
+   * dragged straight off the originals. Every copy is offset by the same 30cm,
+   * so the set keeps its arrangement.
+   *
+   * Walls go first and their copies are remembered, so a door or window
+   * selected along with the wall it sits in lands on the copied wall at the
+   * same position instead of being nudged along the original.
+   */
+  function duplicateSelection() {
+    if (!currentFloor) return;
+    const ids = currentSelectedIds.size > 0
+      ? [...currentSelectedIds]
+      : (currentSelectedId ? [currentSelectedId] : []);
+    if (ids.length === 0) return;
+
+    beginUndoGroup();
+    const newIds: string[] = [];
+    const copiedWalls = new Map<string, string>();
+
+    for (const id of ids) {
+      if (!currentFloor.walls.some(w => w.id === id)) continue;
+      const newId = duplicateElement(id);
+      if (newId) { newIds.push(newId); copiedWalls.set(id, newId); }
+    }
+    for (const id of ids) {
+      if (copiedWalls.has(id)) continue;
+      const opening = currentFloor.doors.find(d => d.id === id) ?? currentFloor.windows.find(w => w.id === id);
+      const newId = duplicateElement(id, opening ? copiedWalls.get(opening.wallId) : undefined);
+      if (newId) newIds.push(newId);
+    }
+
+    endUndoGroup(newIds.length > 1 ? `Duplicated ${newIds.length} elements` : 'Duplicated element');
+
+    if (newIds.length === 0) return;
+    if (newIds.length === 1) {
+      selectedElementIds.set(new Set());
+      selectedElementId.set(newIds[0]);
+    } else {
+      selectedElementIds.set(new Set(newIds));
+      selectedElementId.set(newIds[0]);
+    }
+  }
+
   function handleContextMenuAction(action: string, _data?: any) {
     if (!currentFloor) return;
     const id = ctxMenuTargetId;
@@ -4182,6 +4240,14 @@
         const s = worldToScreen(furn.position.x, furn.position.y);
         return { type: 'furniture', pos: s };
       }
+      // Stairs, columns and entourage anchor the toolbar too, so it survives a
+      // selection whose primary is one of them
+      const stair = f.stairs?.find(st => st.id === currentSelectedId);
+      if (stair) return { type: 'stair', pos: worldToScreen(stair.position.x, stair.position.y) };
+      const col = f.columns?.find(c => c.id === currentSelectedId);
+      if (col) return { type: 'column', pos: worldToScreen(col.position.x, col.position.y) };
+      const ent = f.entourage?.find(en => en.id === currentSelectedId);
+      if (ent) return { type: 'entourage', pos: worldToScreen(ent.position.x, ent.position.y) };
       return null;
     })()}
     {#if el}
@@ -4193,15 +4259,7 @@
           class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
           title="Duplicate"
           aria-label="Duplicate"
-          onclick={() => {
-            if (!currentSelectedId || !currentFloor) return;
-            let newId: string | null = null;
-            if (el.type === 'door') newId = duplicateDoor(currentSelectedId);
-            else if (el.type === 'window') newId = duplicateWindow(currentSelectedId);
-            else if (el.type === 'furniture') newId = duplicateFurniture(currentSelectedId);
-            else if (el.type === 'wall') newId = duplicateWall(currentSelectedId);
-            if (newId) selectedElementId.set(newId);
-          }}
+          onclick={duplicateSelection}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         </button>
