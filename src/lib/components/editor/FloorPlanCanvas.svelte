@@ -30,6 +30,8 @@
 
   // Dirty flag for render optimization — only redraw when something changes
   let canvasDirty = true;
+  let rafId = 0;
+  let drawErrorsLogged = 0;
   function markDirty() { canvasDirty = true; }
   function getCS(): CanvasState { return { ctx, width, height, zoom, camX, camY }; }
   // Sync zoom with shared store
@@ -1275,14 +1277,28 @@
   }
 
 
-  function scheduleDraw() {
-    markDirty();
-    requestAnimationFrame(draw);
+  /**
+   * The frame loop. The next frame is queued before the current one is drawn
+   * and the drawing is guarded, so a frame that throws costs one frame rather
+   * than leaving the canvas frozen until the page is reloaded. The error still
+   * reaches the console, capped so a fault that repeats every frame does not
+   * bury everything else.
+   */
+  function draw() {
+    rafId = requestAnimationFrame(draw);
+    if (!ctx) return;
+    try {
+      drawFrame();
+    } catch (err) {
+      if (drawErrorsLogged < 5) {
+        drawErrorsLogged++;
+        console.error('[FloorPlanCanvas] frame failed to draw', err);
+      }
+    }
   }
 
-  function draw() {
-    if (!ctx) return;
-    if (!canvasDirty) { requestAnimationFrame(draw); return; }
+  function drawFrame() {
+    if (!canvasDirty) return;
     canvasDirty = false;
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#f8f9fa';
@@ -1292,7 +1308,7 @@
     drawBackgroundImage();
 
     const floor = currentFloor;
-    if (!floor) { requestAnimationFrame(draw); return; }
+    if (!floor) return;
     // Mark dirty whenever active interactions are happening (wall drawing, dragging, etc.)
     if (wallStart || draggingFurnitureId || draggingDoorId || draggingWindowId || draggingStairId ||
         draggingColumnId || draggingWallEndpoint || draggingWallParallel || draggingCurveHandle ||
@@ -1917,8 +1933,6 @@
 
     // Mini-map
     drawMinimap();
-
-    requestAnimationFrame(draw);
   }
 
   /** True while the integrated elevation view covers the canvas area */
@@ -1933,7 +1947,7 @@
     setTextureLoadCallback(() => { /* draw loop is already running via rAF */ });
     const resizeObs = new ResizeObserver(resize);
     resizeObs.observe(canvas.parentElement!);
-    requestAnimationFrame(draw);
+    rafId = requestAnimationFrame(draw);
 
     let initialFitDone = false;
     const unsub1 = activeFloor.subscribe((f) => {
@@ -2015,7 +2029,7 @@
     canvas.addEventListener('touchend', onTouchEnd, { passive: false });
     canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsub_snapfurn(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
+    return () => { cancelAnimationFrame(rafId); resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsub_snapfurn(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
   });
 
   /** Compute world bounding box of all elements */
