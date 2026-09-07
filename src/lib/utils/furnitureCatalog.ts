@@ -12,6 +12,40 @@ export interface FurnitureDef {
   height: number;
   /** If set, this is a 2D-only architectural symbol (not rendered in 3D) */
   symbol?: boolean;
+  /** Per-item pose, carried over from FurnitureItem — see FURNITURE_POSES */
+  variant?: string;
+}
+
+/**
+ * Poses for items that can be arranged more than one way. Each carries the
+ * footprint it takes, since folding a mat or standing it up changes the plan
+ * outline, the hit test and the snapping, not just the 3D shape.
+ */
+export interface FurniturePose {
+  id: string;
+  label: string;
+  width: number;
+  depth: number;
+  height: number;
+}
+
+/** A 8x5ft crash pad 6" thick, folding in half to 4x5ft at 12" */
+const CRASH_PAD_POSES: FurniturePose[] = [
+  { id: 'flat', label: 'Flat', width: 243.84, depth: 152.4, height: 15.24 },
+  { id: 'flat_folded', label: 'Flat, folded', width: 121.92, depth: 152.4, height: 30.48 },
+  { id: 'upright', label: 'Upright', width: 152.4, depth: 15.24, height: 243.84 },
+  { id: 'upright_folded', label: 'Upright, folded', width: 152.4, depth: 30.48, height: 121.92 },
+];
+
+export const FURNITURE_POSES: Record<string, FurniturePose[]> = {
+  crash_pad: CRASH_PAD_POSES,
+};
+
+/** The named pose for an item, or its first pose as the default. */
+export function furniturePose(catalogId: string, variant: string | undefined): FurniturePose | undefined {
+  const poses = FURNITURE_POSES[catalogId];
+  if (!poses) return undefined;
+  return poses.find((p) => p.id === variant) ?? poses[0];
 }
 
 export const furnitureCatalog: FurnitureDef[] = [
@@ -84,6 +118,8 @@ export const furnitureCatalog: FurnitureDef[] = [
   // Freestanding bag on a fillable base: 28" base diameter and 69" tall,
   // with an 18" x 52" striking surface
   { id: 'punching_bag', name: 'Punching Bag', category: 'Gym', icon: '🥊', color: '#27272a', width: 71.12, depth: 71.12, height: 175.26 },
+  // Folding judo crash pad — poses in FURNITURE_POSES, defaulting to flat
+  { id: 'crash_pad', name: 'Crash Pad', category: 'Gym', icon: '⬜', color: '#6b7280', width: 243.84, depth: 152.4, height: 15.24 },
   // Bolt-down locker room bench: a 120" x 9.5" maple top 1.25" thick, 17" to
   // the seat, on three steel pedestals
   { id: 'locker_bench', name: 'Locker Room Bench', category: 'Gym', icon: '🪑', color: '#d7b183', width: 304.8, depth: 24.13, height: 43.18 },

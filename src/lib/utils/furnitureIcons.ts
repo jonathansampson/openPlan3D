@@ -392,7 +392,7 @@ const drawRug: DrawFn = (ctx, w, d, color) => {
 function tatamiWeave(ctx: CanvasRenderingContext2D, w: number, d: number, color: string) {
   ctx.strokeStyle = color;
   ctx.lineWidth = 0.5;
-  const spacing = Math.max(4, d / 12);
+  const spacing = 16; //Math.max(4, d / 12);
   ctx.beginPath();
   for (let y = -d / 2 + spacing; y < d / 2 - 1; y += spacing) {
     ctx.moveTo(-w / 2, y);
@@ -732,6 +732,25 @@ const drawStorage: DrawFn = (ctx, w, d) => {
   ctx.arc(-w*0.1, -d*0.25, 1.5, 0, Math.PI*2);
   ctx.arc(w*0.1, -d*0.25, 1.5, 0, Math.PI*2);
   ctx.fill();
+};
+
+/**
+ * Crash pad from above: the vinyl outline with a stitched inner border. The
+ * chosen pose is already in the footprint, so a folded or stood-up pad reads
+ * as the smaller rectangle it becomes.
+ */
+const drawCrashPad: DrawFn = (ctx, w, d, color) => {
+  roundRect(ctx, -w / 2, -d / 2, w, d, 3);
+  ctx.fill(); ctx.stroke();
+  const inset = Math.min(3, Math.min(w, d) * 0.08);
+  if (w - inset * 2 > 0 && d - inset * 2 > 0) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.75;
+    ctx.setLineDash([3, 2]);
+    roundRect(ctx, -w / 2 + inset, -d / 2 + inset, w - inset * 2, d - inset * 2, 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 };
 
 /**
@@ -1086,6 +1105,7 @@ const iconDrawers: Record<string, DrawFn> = {
   mat_frame_rail: drawMatFrameRail,
   punching_bag: drawPunchingBag,
   locker_bench: drawLockerBench,
+  crash_pad: drawCrashPad,
   // Game Room
   arcade_machine: drawArcadeMachine,
   potted_plant: drawPlant,

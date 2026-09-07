@@ -2,7 +2,7 @@
   import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
-  import { getCatalogItem } from '$lib/utils/furnitureCatalog';
+  import { getCatalogItem, FURNITURE_POSES, furniturePose } from '$lib/utils/furnitureCatalog';
   import { DOOR_LEAF_STATES, SINGLE_LEAF_STATES } from '$lib/utils/doorStates';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import { base } from '$app/paths';
@@ -146,6 +146,23 @@
     if (!selectedWindow) return;
     updateWindow(selectedWindow.id, { height: inputToCm(Number((e.target as HTMLInputElement).value)) });
   }
+  /**
+   * Switch an item's pose. The dimensions go with it in the same update, since
+   * folding a pad or standing it up changes the footprint the plan draws and
+   * snaps to, and one update keeps it to a single undo step.
+   */
+  function setFurniturePose(poseId: string) {
+    if (!selectedFurniture) return;
+    const pose = furniturePose(selectedFurniture.catalogId, poseId);
+    if (!pose) return;
+    updateFurniture(selectedFurniture.id, {
+      variant: pose.id,
+      width: pose.width,
+      depth: pose.depth,
+      height: pose.height,
+    });
+  }
+
   function onWindowSill(e: Event) {
     if (!selectedWindow) return;
     updateWindow(selectedWindow.id, { sillHeight: inputToCm(Number((e.target as HTMLInputElement).value)) });
@@ -603,6 +620,20 @@
       >{selectedFurniture.locked ? '🔒 Locked' : '🔓'}</button>
     </h3>
     <div class="space-y-3">
+      {#if FURNITURE_POSES[selectedFurniture.catalogId]}
+        <label class="block">
+          <span class="text-xs text-gray-500">Arrangement</span>
+          <select
+            value={furniturePose(selectedFurniture.catalogId, selectedFurniture.variant)?.id}
+            onchange={(e) => setFurniturePose((e.target as HTMLSelectElement).value)}
+            class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+          >
+            {#each FURNITURE_POSES[selectedFurniture.catalogId] as pose}
+              <option value={pose.id}>{pose.label}</option>
+            {/each}
+          </select>
+        </label>
+      {/if}
       <!-- Color -->
       <div>
         <div class="flex items-center gap-1 mb-2">

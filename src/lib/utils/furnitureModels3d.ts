@@ -157,6 +157,9 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'locker_bench':
       createLockerBench(group, w, d, h, color);
       break;
+    case 'crash_pad':
+      createCrashPad(group, w, d, h, color, def.variant);
+      break;
     case 'arcade_machine':
       createArcadeMachine(group, w, d, h, color);
       break;
@@ -1199,6 +1202,60 @@ function createMatFrameRail(group: THREE.Group, w: number, d: number, h: number,
   geo.rotateY(Math.PI / 2);
 
   group.add(new THREE.Mesh(geo, createMaterial(color, 0.65, 0.0)));
+}
+
+/**
+ * Folding crash pad: two square 4x5ft pads joined by a strip of fabric on one
+ * face, which is what lets them lie side by side as one 8ft pad or fold onto
+ * each other. Every edge stays square. The item's size already carries the
+ * footprint of the chosen pose, so the two pads divide it:
+ *
+ *   flat            side by side along the length, fabric across the top seam
+ *   flat, folded    stacked, fabric wrapping the closed end
+ *   upright         stacked, the length now vertical, fabric across the face
+ *   upright, folded back to back, fabric wrapping the top
+ */
+function createCrashPad(group: THREE.Group, w: number, d: number, h: number, color: string, variant?: string): void {
+  const vinyl = createMaterial(color, 0.85, 0.02);
+  const fabric = createMaterial('#52525b', 0.95, 0.0);
+  const folded = variant === 'flat_folded' || variant === 'upright_folded';
+  const upright = variant === 'upright' || variant === 'upright_folded';
+  // The two pads are separate, so a hairline shows between them
+  const gap = Math.min(w, d, h) * 0.01;
+  // The fabric lies on the surface, inset so it stays inside the footprint
+  const skin = Math.min(1.2, Math.min(w, d, h) * 0.05);
+
+  const box = (bw: number, bh: number, bd: number, x: number, y: number, z: number, mat: THREE.Material) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+    mesh.position.set(x, y, z);
+    group.add(mesh);
+  };
+
+  if (folded && upright) {
+    // Back to back, joined over the top
+    const padD = (d - gap) / 2;
+    box(w, h, padD, 0, h / 2, -d / 2 + padD / 2, vinyl);
+    box(w, h, padD, 0, h / 2, d / 2 - padD / 2, vinyl);
+    box(w, skin, d, 0, h - skin / 2, 0, fabric);
+  } else if (folded) {
+    // Stacked on the floor, joined round the closed end
+    const padH = (h - gap) / 2;
+    box(w, padH, d, 0, padH / 2, 0, vinyl);
+    box(w, padH, d, 0, h - padH / 2, 0, vinyl);
+    box(skin, h, d, -w / 2 + skin / 2, h / 2, 0, fabric);
+  } else if (upright) {
+    // Stood on end, joined across the middle of the face
+    const padH = (h - gap) / 2;
+    box(w, padH, d, 0, padH / 2, 0, vinyl);
+    box(w, padH, d, 0, h - padH / 2, 0, vinyl);
+    box(w, Math.min(10, h * 0.06), skin, 0, h / 2, d / 2 - skin / 2, fabric);
+  } else {
+    // Side by side on the floor, joined across the top seam
+    const padW = (w - gap) / 2;
+    box(padW, h, d, -w / 2 + padW / 2, h / 2, 0, vinyl);
+    box(padW, h, d, w / 2 - padW / 2, h / 2, 0, vinyl);
+    box(Math.min(10, w * 0.06), skin, d, 0, h - skin / 2, 0, fabric);
+  }
 }
 
 /**

@@ -1579,6 +1579,7 @@
         width: fi.width ?? cat.width,
         depth: fi.depth ?? cat.depth,
         height: fi.height ?? cat.height,
+        variant: fi.variant,
       };
       const model = createFurnitureModelWithGLB(fi.catalogId, furnitureDef, () => {
         // Re-render when GLB model finishes loading
