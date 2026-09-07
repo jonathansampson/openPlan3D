@@ -204,4 +204,22 @@
     background: #e5e7eb;
     margin: 4px 0;
   }
+
+  /* The panel itself is carried by the bg-white and border-gray-200 overrides
+     in app.css; these are the pieces styled here rather than by a utility. */
+  :global(html.dark) .ctx-item {
+    color: #d1d5db;
+  }
+  :global(html.dark) .ctx-item:hover {
+    background: #374151;
+  }
+  :global(html.dark) .ctx-danger {
+    color: #f87171;
+  }
+  :global(html.dark) .ctx-danger:hover {
+    background: #451a1a;
+  }
+  :global(html.dark) .ctx-sep {
+    background: #374151;
+  }
 </style>
