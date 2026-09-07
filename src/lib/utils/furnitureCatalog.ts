@@ -84,6 +84,9 @@ export const furnitureCatalog: FurnitureDef[] = [
   // Freestanding bag on a fillable base: 28" base diameter and 69" tall,
   // with an 18" x 52" striking surface
   { id: 'punching_bag', name: 'Punching Bag', category: 'Gym', icon: '🥊', color: '#27272a', width: 71.12, depth: 71.12, height: 175.26 },
+  // Bolt-down locker room bench: a 120" x 9.5" maple top 1.25" thick, 17" to
+  // the seat, on three steel pedestals
+  { id: 'locker_bench', name: 'Locker Room Bench', category: 'Gym', icon: '🪑', color: '#d7b183', width: 304.8, depth: 24.13, height: 43.18 },
 
   // Game Room — imperial sizes converted from inches (2.54 cm to the inch)
   // Upright cabinet, 18.82" W x 22.44" D x 61" H

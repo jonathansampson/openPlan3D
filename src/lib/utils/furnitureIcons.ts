@@ -735,6 +735,22 @@ const drawStorage: DrawFn = (ctx, w, d) => {
 };
 
 /**
+ * Locker room bench from above: the plank, with its three pedestals showing
+ * through at the middle and either end.
+ */
+const drawLockerBench: DrawFn = (ctx, w, d) => {
+  roundRect(ctx, -w / 2, -d / 2, w, d, 1);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#6b728080';
+  const r = Math.max(0.8, d * 0.28);
+  for (const t of [-0.4, 0, 0.4]) {
+    ctx.beginPath();
+    ctx.arc(w * t, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+};
+
+/**
  * Freestanding bag from above: the weighted base with the striking surface
  * centered on it, 18" of bag on a 28" base.
  */
@@ -1069,6 +1085,7 @@ const iconDrawers: Record<string, DrawFn> = {
   wall_pad: drawWallPad,
   mat_frame_rail: drawMatFrameRail,
   punching_bag: drawPunchingBag,
+  locker_bench: drawLockerBench,
   // Game Room
   arcade_machine: drawArcadeMachine,
   potted_plant: drawPlant,

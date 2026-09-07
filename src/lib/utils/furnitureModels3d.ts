@@ -154,6 +154,9 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'punching_bag':
       createPunchingBag(group, w, d, h, color);
       break;
+    case 'locker_bench':
+      createLockerBench(group, w, d, h, color);
+      break;
     case 'arcade_machine':
       createArcadeMachine(group, w, d, h, color);
       break;
@@ -1196,6 +1199,48 @@ function createMatFrameRail(group: THREE.Group, w: number, d: number, h: number,
   geo.rotateY(Math.PI / 2);
 
   group.add(new THREE.Mesh(geo, createMaterial(color, 0.65, 0.0)));
+}
+
+/**
+ * Locker room bench: a hardwood plank on three bolt-down steel pedestals, one
+ * at the middle and one towards each end. The plank is 1.25" of a 17" seat
+ * height and the tube is 2" across a 9.5" depth, so those ratios set the
+ * proportions at whatever size the item is given.
+ */
+function createLockerBench(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const plankThickness = h * (1.25 / 17);
+  const plank = new THREE.Mesh(
+    new THREE.BoxGeometry(w, plankThickness, d),
+    createMaterial(color, 0.6, 0.0),
+  );
+  plank.position.y = h - plankThickness / 2;
+  group.add(plank);
+
+  const steel = createMaterial('#6b7280', 0.4, 0.7);
+  // A 2" tube across a 9.5" depth, with the bolt-down plate wider again. Both
+  // shrink together once a tenth of the length is the narrower limit, which
+  // keeps the end plates inside a bench short enough for them to overhang.
+  const tubeRadius = Math.min(d * (2 / 9.5) / 2, w * 0.1 / 2.6);
+  const plateRadius = tubeRadius * 2.6;
+  const plateThickness = h * 0.03;
+  const tubeHeight = h - plankThickness - plateThickness;
+
+  for (const offset of [-0.4, 0, 0.4]) {
+    const x = w * offset;
+    const plate = new THREE.Mesh(
+      new THREE.CylinderGeometry(plateRadius, plateRadius, plateThickness, 16),
+      steel,
+    );
+    plate.position.set(x, plateThickness / 2, 0);
+    group.add(plate);
+
+    const tube = new THREE.Mesh(
+      new THREE.CylinderGeometry(tubeRadius, tubeRadius, tubeHeight, 16),
+      steel,
+    );
+    tube.position.set(x, plateThickness + tubeHeight / 2, 0);
+    group.add(tube);
+  }
 }
 
 /**
