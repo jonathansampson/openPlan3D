@@ -12,7 +12,7 @@
    * empty wall selects the wall itself. A slim header bar cycles through walls.
    * Escape (or the TopBar Plan/Elevation toggle) returns to the plan view.
    */
-  import { activeFloor, elevationWallId, selectedElementId, selectedElementIds, selectedRoomId, updateDoor, updateWindow, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
+  import { activeFloor, elevationWallId, selectedElementId, selectedElementIds, selectedRoomId, updateDoor, updateWindow, duplicateDoor, duplicateWindow, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
   import { projectSettings, formatLength } from '$lib/stores/settings';
   import type { Door, Window as Win } from '$lib/models/types';
 
@@ -79,6 +79,42 @@
 
   let hoverOpeningId = $state<string | null>(null);
   let dragging = $state(false);
+
+  /**
+   * Where to put a copy so it lands beside its original rather than under it:
+   * one width plus a small gap along the wall, on the other side if that would
+   * run off the end, and always far enough in to sit fully on the wall.
+   */
+  function positionBeside(origPos: number, width: number): number {
+    const half = width / 2 / wallLen;
+    const step = (width + 10) / wallLen;
+    const lo = half;
+    const hi = 1 - half;
+    if (lo >= hi) return 0.5; // wall too short for the opening to fit at all
+    const forward = origPos + step;
+    const p = forward > hi ? origPos - step : forward;
+    return Math.max(lo, Math.min(hi, p));
+  }
+
+  /** Copy the selected opening and select the copy, so it can be edited here */
+  function duplicateSelected() {
+    const id = selectedOpeningId;
+    if (!id || !wall) return;
+    const win = windows.find((w) => w.id === id);
+    const door = doors.find((d) => d.id === id);
+    if (!win && !door) return;
+
+    beginUndoGroup();
+    const newId = win ? duplicateWindow(id) : duplicateDoor(id);
+    if (newId) {
+      const source = win ?? door!;
+      const pos = positionBeside(source.position, source.width);
+      if (win) updateWindow(newId, { position: pos });
+      else updateDoor(newId, { position: pos });
+    }
+    endUndoGroup(win ? 'Duplicated window' : 'Duplicated door');
+    if (newId) selectElement(newId);
+  }
 
   function selectElement(id: string | null) {
     selectedElementId.set(id);
@@ -538,6 +574,15 @@
       >›</button>
       <span class="text-xs text-gray-400 ml-1">{formatLength(wallLen, units)} × {formatLength(wallH, units)}</span>
       <div class="flex-1"></div>
+      <button
+        class="h-7 px-2 flex items-center gap-1.5 rounded-md text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        onclick={duplicateSelected}
+        disabled={!selectedOpeningId}
+        title={selectedOpeningId ? 'Duplicate the selected opening' : 'Select a door or window to duplicate'}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Duplicate
+      </button>
       <span class="text-[11px] text-gray-400 max-lg:hidden">Drag openings to move · drag windows up/down for sill · Esc for plan</span>
     </div>
 
