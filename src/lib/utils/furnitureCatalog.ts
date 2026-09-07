@@ -81,6 +81,9 @@ export const furnitureCatalog: FurnitureDef[] = [
   { id: 'wall_pad', name: 'Wall Pad', category: 'Gym', icon: '🟥', color: '#1f2937', width: 60.96, depth: 5.08, height: 182.88 },
   // One rail of a mat frame kit — 78" x 3" x 1.25" oak, three to a kit
   { id: 'mat_frame_rail', name: 'Frame Rail', category: 'Gym', icon: '📏', color: '#c8a165', width: 198.12, depth: 7.62, height: 3.175 },
+  // Freestanding bag on a fillable base: 28" base diameter and 69" tall,
+  // with an 18" x 52" striking surface
+  { id: 'punching_bag', name: 'Punching Bag', category: 'Gym', icon: '🥊', color: '#27272a', width: 71.12, depth: 71.12, height: 175.26 },
 
   // Game Room — imperial sizes converted from inches (2.54 cm to the inch)
   // Upright cabinet, 18.82" W x 22.44" D x 61" H

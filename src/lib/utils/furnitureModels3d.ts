@@ -151,6 +151,9 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'mat_frame_rail':
       createMatFrameRail(group, w, d, h, color);
       break;
+    case 'punching_bag':
+      createPunchingBag(group, w, d, h, color);
+      break;
     case 'arcade_machine':
       createArcadeMachine(group, w, d, h, color);
       break;
@@ -1193,6 +1196,68 @@ function createMatFrameRail(group: THREE.Group, w: number, d: number, h: number,
   geo.rotateY(Math.PI / 2);
 
   group.add(new THREE.Mesh(geo, createMaterial(color, 0.65, 0.0)));
+}
+
+/**
+ * Half-profile of a cylinder whose top and bottom rims are filleted, ready to
+ * be revolved by LatheGeometry. The fillet is taken out of the radius and the
+ * height rather than added to them, so the shape still measures exactly
+ * radius x height.
+ */
+function roundedCylinderProfile(radius: number, height: number, fillet: number, arcSteps = 6): THREE.Vector2[] {
+  const r = Math.min(fillet, radius, height / 2);
+  const points = [new THREE.Vector2(0, 0)];
+  // Bottom rim: out from the floor, round up to the side wall
+  for (let i = 0; i <= arcSteps; i++) {
+    const a = (Math.PI / 2) * (i / arcSteps);
+    points.push(new THREE.Vector2(radius - r + r * Math.sin(a), r - r * Math.cos(a)));
+  }
+  // Top rim: off the side wall, round in to the top face
+  for (let i = 0; i <= arcSteps; i++) {
+    const a = (Math.PI / 2) * (i / arcSteps);
+    points.push(new THREE.Vector2(radius - r + r * Math.cos(a), height - r + r * Math.sin(a)));
+  }
+  points.push(new THREE.Vector2(0, height));
+  return points;
+}
+
+/**
+ * Freestanding punching bag: a weighted base carrying the striking surface,
+ * domed at the top. An 18" x 52" bag on a 28" base leaves 17" of base below
+ * it, so the proportions come from those ratios and hold at whatever size the
+ * item is given.
+ */
+function createPunchingBag(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const baseRadius = Math.min(w, d) / 2;
+  const bagRadius = baseRadius * (18 / 28);
+  const bagHeight = h * (52 / 69);
+  const baseHeight = h - bagHeight;
+  // The dome comes out of the bag's own height, so the total stays exact
+  const domeHeight = Math.min(bagRadius * 0.35, bagHeight * 0.1);
+  const shaftHeight = bagHeight - domeHeight;
+
+  // The base is black plastic whatever the bag is colored, with softened rims
+  // so it reads as molded rather than as a cut tube
+  const rim = Math.min(baseRadius * 0.16, baseHeight * 0.3);
+  const base = new THREE.Mesh(
+    new THREE.LatheGeometry(roundedCylinderProfile(baseRadius, baseHeight, rim), 24),
+    createMaterial('#18181b', 0.55, 0.05),
+  );
+  group.add(base);
+
+  const vinyl = createMaterial(color, 0.85, 0.0);
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(bagRadius, bagRadius, shaftHeight, 24),
+    vinyl,
+  );
+  shaft.position.y = baseHeight + shaftHeight / 2;
+  group.add(shaft);
+
+  const domeGeo = new THREE.SphereGeometry(bagRadius, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  domeGeo.scale(1, domeHeight / bagRadius, 1);
+  const dome = new THREE.Mesh(domeGeo, vinyl);
+  dome.position.y = baseHeight + shaftHeight;
+  group.add(dome);
 }
 
 /**

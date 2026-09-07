@@ -735,6 +735,22 @@ const drawStorage: DrawFn = (ctx, w, d) => {
 };
 
 /**
+ * Freestanding bag from above: the weighted base with the striking surface
+ * centered on it, 18" of bag on a 28" base.
+ */
+const drawPunchingBag: DrawFn = (ctx, w, d, color) => {
+  // The base is black plastic whatever the bag is colored
+  ctx.fillStyle = '#18181b60';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w / 2, d / 2, 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = color + '90';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, (w / 2) * (18 / 28), (d / 2) * (18 / 28), 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+};
+
+/**
  * Upright arcade cabinet from above. The screen sits in a well at the back and
  * the control panel deck overhangs the front, so the player stands on the +y
  * side — the same way round as the 3D model.
@@ -1052,6 +1068,7 @@ const iconDrawers: Record<string, DrawFn> = {
   tatami_tri: drawTatamiTriangle,
   wall_pad: drawWallPad,
   mat_frame_rail: drawMatFrameRail,
+  punching_bag: drawPunchingBag,
   // Game Room
   arcade_machine: drawArcadeMachine,
   potted_plant: drawPlant,
