@@ -1489,12 +1489,14 @@
       }
 
       // Sill — protruding ledge
-      const sillGeo = new THREE.BoxGeometry(win.width + 16, 4, wt + 10);
-      const sillMesh = new THREE.Mesh(sillGeo, frameMat);
-      sillMesh.position.set(px, win.sillHeight - 2, py);
-      sillMesh.rotation.y = -angle;
-      sillMesh.castShadow = true;
-      wallGroup.add(sillMesh);
+      if (win.hasSill !== false) {
+        const sillGeo = new THREE.BoxGeometry(win.width + 16, 4, wt + 10);
+        const sillMesh = new THREE.Mesh(sillGeo, frameMat);
+        sillMesh.position.set(px, win.sillHeight - 2, py);
+        sillMesh.rotation.y = -angle;
+        sillMesh.castShadow = true;
+        wallGroup.add(sillMesh);
+      }
     }
 
     // Furniture

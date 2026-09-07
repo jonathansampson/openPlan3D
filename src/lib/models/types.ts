@@ -50,6 +50,8 @@ export interface Window {
   width: number;
   height: number;
   sillHeight: number;
+  /** Protruding ledge below the opening. Absent counts as present. */
+  hasSill?: boolean;
   type: 'standard' | 'fixed' | 'casement' | 'sliding' | 'bay' | 'opening';
 }
 

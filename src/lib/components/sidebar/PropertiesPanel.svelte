@@ -562,6 +562,15 @@
         <span class="text-xs text-gray-500">Sill Height ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWindow.sillHeight)} oninput={onWindowSill} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
+      {#if selectedWindow.type !== 'opening'}
+      <label class="block">
+        <span class="text-xs text-gray-500">Sill Ledge</span>
+        <div class="flex gap-2">
+          <button onclick={() => { if (selectedWindow) updateWindow(selectedWindow.id, { hasSill: true }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedWindow?.hasSill !== false ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Yes</button>
+          <button onclick={() => { if (selectedWindow) updateWindow(selectedWindow.id, { hasSill: false }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedWindow?.hasSill === false ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">No</button>
+        </div>
+      </label>
+      {/if}
     </div>
 
   {:else if selectedFurniture}
