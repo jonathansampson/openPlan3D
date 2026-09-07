@@ -1675,8 +1675,6 @@
 
     // Columns
     buildColumns(floor);
-
-    autoCenterCamera(floor);
   }
 
   /** Build all floors stacked vertically in 3D */
@@ -1720,9 +1718,6 @@
         wallGroup.add(child);
       }
     }
-    
-    // Re-center camera to encompass all floors
-    autoCenterCameraAllFloors(project.floors.length);
   }
   
   function addFloorLabel(floorIndex: number, name: string, yOffset: number) {
@@ -1836,7 +1831,7 @@
     }
   }
   
-  function autoCenterCameraAllFloors(floorCount: number) {
+  function autoCenterCameraAllFloors() {
     const box = new THREE.Box3().setFromObject(wallGroup);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
@@ -1846,13 +1841,40 @@
     controls.update();
   }
   
+  /**
+   * The scene rebuilds on every project mutation, so the camera is framed only
+   * on the first build, on a floor change and when the stacked view is
+   * toggled. Between those it stays where the user left it, and Fit View
+   * re-frames on demand.
+   */
+  let framedFloorId: string | null = null;
+  let framedAllFloors = false;
+
   function rebuildScene() {
     if (showAllFloors) {
       buildAllFloorsStacked();
+      framedFloorId = null;
+      if (!framedAllFloors) {
+        autoCenterCameraAllFloors();
+        framedAllFloors = true;
+      }
     } else if (currentFloor) {
       buildWalls(currentFloor);
+      framedAllFloors = false;
+      // An empty floor has nothing to frame; leaving it unmarked picks it up
+      // once the first wall is drawn
+      if (framedFloorId !== currentFloor.id && currentFloor.walls.length > 0) {
+        autoCenterCamera(currentFloor);
+        framedFloorId = currentFloor.id;
+      }
     }
     markSceneDirty();
+  }
+
+  /** Frame the whole plan, in whichever of the two view modes is active */
+  function fitView() {
+    if (showAllFloors) autoCenterCameraAllFloors();
+    else if (currentFloor) autoCenterCamera(currentFloor);
   }
 
   interface WallSegment {
@@ -2197,6 +2219,18 @@
         <rect x="4" y="14" width="16" height="4" rx="1"/>
         <rect x="4" y="8" width="16" height="4" rx="1" opacity="0.6"/>
         <rect x="4" y="2" width="16" height="4" rx="1" opacity="0.3"/>
+      </svg>
+    </button>
+
+    <!-- Fit View Button -->
+    <button
+      onclick={fitView}
+      class="p-2 rounded-lg bg-black/70 text-white hover:bg-black/80 transition-colors"
+      title="Fit View — frame the whole plan"
+      aria-label="Fit View"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/>
       </svg>
     </button>
 
