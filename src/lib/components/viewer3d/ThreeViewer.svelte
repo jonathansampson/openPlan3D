@@ -591,6 +591,8 @@
 
   const WALL_THICKNESS = 15;
   const BASEBOARD_HEIGHT = 8;
+  /** Fallback for a door with no height of its own, matching the elevation view */
+  const DEFAULT_DOOR_HEIGHT = 210;
 
   // Create a canvas-based floor texture
   function createFloorTexture(): THREE.CanvasTexture {
@@ -1352,7 +1354,7 @@
       const wt = Math.max(wall.thickness, WALL_THICKNESS);
 
       const frameMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.6 });
-      const doorHeight = 210;
+      const doorHeight = Math.min(door.height ?? DEFAULT_DOOR_HEIGHT, wall.height);
       const jamb = 5; // jamb thickness
 
       // Left jamb
@@ -1891,7 +1893,7 @@
     type Opening = { pos: number; width: number; bottomY: number; topY: number };
     const openings: Opening[] = [];
     for (const d of doors) {
-      openings.push({ pos: d.position * wallLen, width: d.width, bottomY: 0, topY: 210 });
+      openings.push({ pos: d.position * wallLen, width: d.width, bottomY: 0, topY: Math.min(d.height ?? DEFAULT_DOOR_HEIGHT, wallH) });
     }
     for (const w of windows) {
       openings.push({ pos: w.position * wallLen, width: w.width, bottomY: w.sillHeight, topY: w.sillHeight + w.height });
