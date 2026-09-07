@@ -17,6 +17,7 @@
   import { detectRooms, detectRoomsWithSaved, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
+  import { doorLeafAngles } from '$lib/utils/doorStates';
 
   let container: HTMLDivElement;
   let renderer: THREE.WebGLRenderer;
@@ -1376,6 +1377,72 @@
 
       if (door.type === 'opening') {
         // Plain doorway — jambs and header only, no door leaf
+      } else if (door.type === 'storefront' || door.type === 'storefront_single') {
+        // Aluminum pair: glazed leaves with a kick plate, a push bar and a
+        // pull handle, each leaf posed by the door's leafState
+        const alu = new THREE.MeshStandardMaterial({ color: 0xd8d8d8, metalness: 0.75, roughness: 0.25 });
+        const dark = new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.9, roughness: 0.2 });
+        const glassMat = new THREE.MeshStandardMaterial({
+          color: 0xdce8ec, transparent: true, opacity: 0.35, roughness: 0.05,
+        });
+        // Proportions of a 96" leaf pair, scaled to whatever size this door is
+        const sx = (inches: number) => door.width * (inches / 96);
+        const sy = (inches: number) => doorHeight * (inches / 96);
+        const pair = door.type === 'storefront';
+        const gap = sx(0.25);
+        const leafW = pair ? (door.width - gap) / 2 : door.width;
+        const stile = sx(2.75);
+        const leafD = Math.min(sx(1.75), wt * 0.6);
+        const paneW = leafW - stile * 2;
+        const bottomRail = sy(3);
+        const kickH = sy(11);
+        const topRail = sy(3.5);
+        const [leftDeg, rightDeg] = doorLeafAngles(door.leafState);
+        // Match the plan symbol, which takes swingDirection as which end a
+        // single leaf hangs from, and as part of the swing itself for a pair.
+        const swingDir = door.swingDirection === 'left' ? 1 : -1;
+        const sideFlip = door.flipSide ? -1 : 1;
+        const sides = pair ? ([-1, 1] as const) : ([swingDir] as const);
+
+        for (const side of sides) {
+          const deg = pair ? (side < 0 ? leftDeg : rightDeg) : leftDeg;
+          const rad = -sideFlip * (pair ? swingDir : 1) * ((deg * Math.PI) / 180);
+          const hinge = (side * door.width) / 2;
+          const pivot = new THREE.Group();
+          pivot.position.set(px + hinge * Math.cos(angle), 0, py + hinge * Math.sin(angle));
+          pivot.rotation.y = -angle - side * rad;
+          wallGroup.add(pivot);
+
+          const leaf = new THREE.Group();
+          leaf.position.x = (-side * leafW) / 2;
+          pivot.add(leaf);
+
+          const put = (bw: number, bh: number, bd: number, x: number, y: number, z: number, mat: THREE.Material) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+            m.position.set(x, y, z);
+            m.castShadow = true;
+            leaf.add(m);
+          };
+          put(stile, doorHeight, leafD, -leafW / 2 + stile / 2, doorHeight / 2, 0, alu);
+          put(stile, doorHeight, leafD, leafW / 2 - stile / 2, doorHeight / 2, 0, alu);
+          put(paneW, topRail, leafD, 0, doorHeight - topRail / 2, 0, alu);
+          put(paneW, bottomRail, leafD, 0, bottomRail / 2, 0, alu);
+          put(paneW, kickH, leafD * 0.1, 0, bottomRail + kickH / 2, leafD * 0.55, alu);
+          const glassBottom = bottomRail + kickH;
+          const glassH = doorHeight - topRail - glassBottom;
+          put(paneW, glassH, leafD * 0.15, 0, glassBottom + glassH / 2, 0, glassMat);
+
+          const barR = Math.max(1, sx(0.45));
+          const bar = new THREE.Mesh(new THREE.CylinderGeometry(barR, barR, paneW, 10), dark);
+          bar.rotation.z = Math.PI / 2;
+          bar.position.set(0, sy(42), leafD / 2 + barR * 1.4);
+          leaf.add(bar);
+
+          const gripR = Math.max(0.8, sx(0.35));
+          const grip = new THREE.Mesh(new THREE.CylinderGeometry(gripR, gripR, sy(10), 10), dark);
+          grip.position.set(-side * (leafW / 2 - stile - sx(2.3)), sy(46), -(leafD / 2 + gripR * 4));
+          leaf.add(grip);
+        }
       } else if (door.type === 'garage') {
         // Sectional overhead door: stacked horizontal panels filling the opening
         const secMat = new THREE.MeshStandardMaterial({ color: 0xd8d4cc, roughness: 0.7 });

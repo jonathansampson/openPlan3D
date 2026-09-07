@@ -3,6 +3,7 @@
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
+  import { DOOR_LEAF_STATES, SINGLE_LEAF_STATES } from '$lib/utils/doorStates';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import { base } from '$app/paths';
   import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column, RoomCategory, TextAnnotation } from '$lib/models/types';
@@ -503,11 +504,27 @@
           <option value="french">French</option>
           <option value="pocket">Pocket</option>
           <option value="bifold">Bifold</option>
+          <option value="storefront">Storefront</option>
+          <option value="storefront_single">Storefront (single)</option>
           <option value="opening">Doorway (no door)</option>
           <option value="garage">Garage</option>
         </select>
       </label>
       {#if selectedDoor.type !== 'opening' && selectedDoor.type !== 'garage'}
+      {#if selectedDoor.type === 'storefront' || selectedDoor.type === 'storefront_single'}
+        <label class="block">
+          <span class="text-xs text-gray-500">{selectedDoor.type === 'storefront' ? 'Leaves' : 'Leaf'}</span>
+          <select
+            value={selectedDoor.leafState ?? 'closed'}
+            onchange={(e) => { if (selectedDoor) updateDoor(selectedDoor.id, { leafState: (e.target as HTMLSelectElement).value }); }}
+            class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+          >
+            {#each selectedDoor.type === 'storefront' ? DOOR_LEAF_STATES : SINGLE_LEAF_STATES as state}
+              <option value={state.id}>{state.label}</option>
+            {/each}
+          </select>
+        </label>
+      {/if}
       <label class="block">
         <span class="text-xs text-gray-500">Hinge Side</span>
         <div class="flex gap-2">

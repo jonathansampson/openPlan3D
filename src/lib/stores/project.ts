@@ -231,6 +231,10 @@ export function addDoor(wallId: string, position: number, doorType: Door['type']
     bifold: { width: 180, height: 210 },
     opening: { width: 100, height: 210 },
     garage: { width: 240, height: 210 },
+    // Aluminum storefront pair: a 96" x 96" opening
+    storefront: { width: 243.84, height: 243.84 },
+    // A single 36" leaf in the same 96" tall frame
+    storefront_single: { width: 91.44, height: 243.84 },
   };
   const { width, height } = defaults[doorType];
   mutate((f) => {

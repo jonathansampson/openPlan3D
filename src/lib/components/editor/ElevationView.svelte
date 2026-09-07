@@ -166,6 +166,8 @@
     /** bottom above floor, cm */ y: number;
     w: number;
     h: number;
+    /** Door subtype, for the ones drawn as something other than a plain leaf */
+    doorType?: Door['type'];
   }
 
   function openingRects(): OpeningRect[] {
@@ -173,7 +175,7 @@
     const rects: OpeningRect[] = [];
     for (const d of doors) {
       const h = Math.min(d.height ?? DEFAULT_DOOR_HEIGHT, wallH);
-      rects.push({ id: d.id, kind: 'door', x: d.position * wallLen - d.width / 2, y: 0, w: d.width, h });
+      rects.push({ id: d.id, kind: 'door', x: d.position * wallLen - d.width / 2, y: 0, w: d.width, h, doorType: d.type });
     }
     for (const w of windows) {
       const sill = w.sillHeight ?? DEFAULT_SILL;
@@ -392,7 +394,58 @@
       const py = yAt(r.y + r.h);
       const pw = r.w * scale;
       const ph = r.h * scale;
-      if (r.kind === 'door') {
+      if (r.kind === 'door' && (r.doorType === 'storefront' || r.doorType === 'storefront_single')) {
+        // Glazed aluminum pair. An elevation shows a door in its frame, so the
+        // leaves are drawn shut whatever the plan has them doing.
+        ctx.fillStyle = '#d8d8d8';
+        ctx.fillRect(px, py, pw, ph);
+        ctx.strokeStyle = '#9ca3af';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px, py, pw, ph);
+
+        // Proportions of a 96" leaf pair
+        const stile = pw * (2.75 / 96);
+        const topRail = ph * (3.5 / 96);
+        const bottomRail = ph * (3 / 96);
+        const kickH = ph * (11 / 96);
+        const pair = r.doorType === 'storefront';
+        const leafW = pair ? (pw - pw * (0.25 / 96)) / 2 : pw;
+        const floorPx = py + ph;
+
+        for (const leftLeaf of pair ? [true, false] : [true]) {
+          const lx = leftLeaf ? px : px + pw - leafW;
+          const gx = lx + stile;
+          const gw = leafW - stile * 2;
+          if (gw <= 0) continue;
+          const gy = py + topRail;
+          const gh = ph - topRail - bottomRail - kickH;
+
+          if (gh > 0) {
+            ctx.fillStyle = '#dce8ec';
+            ctx.fillRect(gx, gy, gw, gh);
+            ctx.strokeStyle = '#9ca3af';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(gx, gy, gw, gh);
+          }
+          ctx.fillStyle = '#c7c9cc';
+          ctx.fillRect(gx, floorPx - bottomRail - kickH, gw, kickH);
+          ctx.strokeRect(gx, floorPx - bottomRail - kickH, gw, kickH);
+
+          ctx.strokeStyle = '#777777';
+          ctx.lineWidth = 2;
+          const barY = floorPx - ph * (42 / 96);
+          ctx.beginPath();
+          ctx.moveTo(gx, barY); ctx.lineTo(gx + gw, barY);
+          ctx.stroke();
+
+          // Pull handle, on the leading edge where the leaves meet
+          const hx = leftLeaf ? lx + leafW - stile - pw * (2.3 / 96) : lx + stile + pw * (2.3 / 96);
+          const hTop = floorPx - ph * (51 / 96);
+          ctx.beginPath();
+          ctx.moveTo(hx, hTop); ctx.lineTo(hx, hTop + ph * (10 / 96));
+          ctx.stroke();
+        }
+      } else if (r.kind === 'door') {
         ctx.fillStyle = '#fef3c7';
         ctx.fillRect(px, py, pw, ph);
         ctx.strokeStyle = '#b45309';

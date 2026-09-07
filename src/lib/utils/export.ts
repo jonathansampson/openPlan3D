@@ -4,6 +4,7 @@ import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetect
 import { drawDoorOnWall, drawWindowOnWall, drawEntourageItems } from '$lib/utils/canvasRenderer';
 import type { CanvasState } from '$lib/utils/canvasInteraction';
 import { projectSettings, formatArea } from '$lib/stores/settings';
+import { doorLeafAngles } from '$lib/utils/doorStates';
 import { get } from 'svelte/store';
 import jsPDF from 'jspdf';
 
@@ -306,12 +307,15 @@ export function exportAsSVG(project: Project) {
       };
     };
 
-    if (doorType === 'single' || doorType === 'pocket') {
+    if (doorType === 'single' || doorType === 'pocket' || doorType === 'storefront_single') {
       const r = d.width;
       const hx = px + ux * hw * swingDir;
       const hy = py + uy * hw * swingDir;
       const sa = wallAngle + (swingDir === 1 ? Math.PI : 0);
-      const ea = sa + (-swingDir) * sideFlip * (Math.PI / 2);
+      const openRad = doorType === 'storefront_single'
+        ? (doorLeafAngles(d.leafState)[0] * Math.PI) / 180
+        : Math.PI / 2;
+      const ea = sa + (-swingDir) * sideFlip * openRad;
       if (doorType === 'pocket') {
         paths += `  <line x1="${n2(hx)}" y1="${n2(hy)}" x2="${n2(hx + ux * d.width * swingDir)}" y2="${n2(hy + uy * d.width * swingDir)}" stroke="#999" stroke-width="2" stroke-dasharray="4,3"/>\n`;
       } else {
@@ -321,14 +325,15 @@ export function exportAsSVG(project: Project) {
       const panelAngle = doorType === 'pocket' ? sa : ea;
       paths += `  <line x1="${n2(hx)}" y1="${n2(hy)}" x2="${n2(hx + r * Math.cos(panelAngle))}" y2="${n2(hy + r * Math.sin(panelAngle))}" stroke="#444" stroke-width="2.5"/>\n`;
       paths += `  <circle cx="${n2(hx)}" cy="${n2(hy)}" r="2.5" fill="#444"/>\n`;
-    } else if (doorType === 'double' || doorType === 'french') {
+    } else if (doorType === 'double' || doorType === 'french' || doorType === 'storefront') {
       const r = hw;
+      const leafAngles = doorType === 'storefront' ? doorLeafAngles(d.leafState) : [90, 90];
       for (const side of [-1, 1] as const) {
         const hx = px + ux * hw * side;
         const hy = py + uy * hw * side;
         const arcSwing = side === -1 ? swingDir : -swingDir;
         const sa = wallAngle + Math.PI * (side === 1 ? 1 : 0);
-        const ea = sa + arcSwing * sideFlip * (Math.PI / 2);
+        const ea = sa + arcSwing * sideFlip * (((side === -1 ? leafAngles[0] : leafAngles[1]) * Math.PI) / 180);
         const arc = svgArc(hx, hy, r, sa, ea);
         paths += `  <path d="${arc.path}" fill="none" stroke="#666" stroke-width="1"/>\n`;
         paths += `  <line x1="${n2(hx)}" y1="${n2(hy)}" x2="${n2(hx + r * Math.cos(ea))}" y2="${n2(hy + r * Math.sin(ea))}" stroke="#444" stroke-width="2.5"/>\n`;

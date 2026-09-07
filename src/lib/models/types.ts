@@ -38,9 +38,11 @@ export interface Door {
   position: number; // 0-1 along wall
   width: number;
   height: number;
-  type: 'single' | 'double' | 'sliding' | 'french' | 'pocket' | 'bifold' | 'opening' | 'garage';
+  type: 'single' | 'double' | 'sliding' | 'french' | 'pocket' | 'bifold' | 'opening' | 'garage' | 'storefront' | 'storefront_single';
   swingDirection: 'left' | 'right';
   flipSide: boolean; // flip which side of wall the door opens to (vertical flip)
+  /** How far each leaf stands open, for two-leaf doors. See doorStates.ts. */
+  leafState?: string;
 }
 
 export interface Window {

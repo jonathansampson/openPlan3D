@@ -12,6 +12,7 @@ import { getCatalogItem } from '$lib/utils/furnitureCatalog';
 import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
 import { getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
 import { getWallTextureCanvas, getFloorTextureCanvas } from '$lib/utils/textureGenerator';
+import { doorLeafAngles } from '$lib/utils/doorStates';
 import { getEntourageDef } from '$lib/utils/entourageCatalog';
 import type { EntourageItem, CustomEntourageDef } from '$lib/models/types';
 
@@ -436,12 +437,17 @@ export function drawDoorOnWall(cs: CanvasState, wall: Wall, door: Door): void {
 
   const doorType = door.type || 'single';
 
-  if (doorType === 'single' || doorType === 'pocket') {
+  if (doorType === 'single' || doorType === 'pocket' || doorType === 'storefront_single') {
     const r = door.width * zoom;
     const hingeX = s.x + ux * halfDoor * swingDir;
     const hingeY = s.y + uy * halfDoor * swingDir;
     const startAngle = wallAngle + (swingDir === 1 ? Math.PI : 0);
-    const endAngle = startAngle + (-swingDir) * sideFlip * (Math.PI / 2);
+    // A single storefront leaf is posed by leafState; the rest always show a
+    // right-angle swing
+    const openRad = doorType === 'storefront_single'
+      ? (doorLeafAngles(door.leafState)[0] * Math.PI) / 180
+      : Math.PI / 2;
+    const endAngle = startAngle + (-swingDir) * sideFlip * openRad;
 
     if (doorType === 'pocket') {
       ctx.setLineDash([4, 3]);
@@ -473,14 +479,18 @@ export function drawDoorOnWall(cs: CanvasState, wall: Wall, door: Door): void {
     ctx.arc(hingeX, hingeY, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-  } else if (doorType === 'double' || doorType === 'french') {
+  } else if (doorType === 'double' || doorType === 'french' || doorType === 'storefront') {
     const r = halfDoor;
+    // A storefront pair poses each leaf independently; the others always show
+    // both leaves at a right angle
+    const leafAngles = doorType === 'storefront' ? doorLeafAngles(door.leafState) : [90, 90];
     for (const side of [-1, 1] as const) {
       const hx = s.x + ux * halfDoor * side;
       const hy = s.y + uy * halfDoor * side;
       const arcSwing = side === -1 ? swingDir : -swingDir;
       const sa = wallAngle + Math.PI * (side === 1 ? 1 : 0);
-      const ea = sa + arcSwing * sideFlip * (Math.PI / 2);
+      const openRad = ((side === -1 ? leafAngles[0] : leafAngles[1]) * Math.PI) / 180;
+      const ea = sa + arcSwing * sideFlip * openRad;
 
       ctx.strokeStyle = '#666';
       ctx.lineWidth = 1;
